@@ -1,14 +1,61 @@
 [project]
 name = "prepmd"
 channels = ["conda-forge"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [dependencies]
-python = ">=3.11"
-pip = "*"
+python = ">=3.13,<3.14"
 
-[tasks]
-test = "python -m pytest"
-lint = "ruff check ."
-format = "ruff format ."
-typecheck = "basedpyright"
+[pypi-dependencies]
+prepmd = { path = ".", editable = true }
+pydantic = ">=2.5.0"
+typer = ">=0.9.0"
+rich = ">=13.7.0"
+loguru = ">=0.7.0"
+pyyaml = ">=6.0"
+
+[feature.dev.pypi-dependencies]
+nox = ">=2024.10.9"
+pre-commit = ">=4.0.1"
+
+[feature.test.pypi-dependencies]
+pytest = ">=7.4.0"
+pytest-cov = ">=4.1.0"
+hypothesis = ">=6.82.0"
+typeguard = ">=4.4.2"
+
+[feature.lint.pypi-dependencies]
+ruff = ">=0.11.0"
+pre-commit = ">=4.0.1"
+
+[feature.type.pypi-dependencies]
+basedpyright = ">=1.22.1"
+typeguard = ">=4.4.2"
+pytest = ">=7.4.0"
+
+[feature.docs.pypi-dependencies]
+sphinx = ">=8.3.0"
+sphinx-rtd-theme = ">=3.0.2"
+
+[feature.dev.tasks]
+dev = "prepmd --help"
+
+[feature.test.tasks]
+test = "python -m pytest -q"
+
+[feature.lint.tasks]
+lint = "ruff format --check . && ruff check . && pre-commit run --all-files"
+
+[feature.type.tasks]
+type = "basedpyright && python -m pytest -q --typeguard-packages=prepmd --maxfail=1"
+
+[feature.docs.tasks]
+docs = "sphinx-build -b html docs docs/_build/html"
+
+[environments]
+default = { features = ["dev", "test", "lint", "type", "docs"] }
+dev = { features = ["dev"] }
+test = { features = ["test"] }
+lint = { features = ["lint"] }
+type = { features = ["type"] }
+docs = { features = ["docs"] }

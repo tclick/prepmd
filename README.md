@@ -19,3 +19,17 @@ or use a YAML/TOML config:
 ```bash
 prepmd setup /path/to/config.yaml
 ```
+
+You can also merge config file values with CLI overrides:
+
+```bash
+prepmd prepare --config /path/to/config.toml --engine gromacs --replicas 3
+```
+
+## Development workflow
+
+- Environment management: `pixi.toml` (profiles: `dev`, `test`, `lint`, `type`, `docs`)
+- Task automation: `noxfile.py`
+- Checks and formatting: `ruff`, `basedpyright`, `typeguard`, `pytest`, `hypothesis`
+- Git hooks: `.pre-commit-config.yaml`
+- Documentation: Sphinx docs in `docs/` with ReadTheDocs config in `.readthedocs.yml`

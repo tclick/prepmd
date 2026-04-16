@@ -119,6 +119,47 @@ def test_cli_prepare(tmp_path: Path) -> None:
     assert (tmp_path / "prep" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
 
 
+def test_cli_prepare_with_config_and_cli_overrides(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "cfg.toml"
+    config_path.write_text(
+        (
+            'project_name = "from-config"\n'
+            f'output_dir = "{tmp_path}"\n'
+            "[simulation]\n"
+            "replicas = 1\n"
+            "[engine]\n"
+            'name = "amber"\n'
+            'force_field = "ff19sb"\n'
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--config",
+            str(config_path),
+            "--engine",
+            "gromacs",
+            "--replicas",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (tmp_path / "from-config" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in").exists()
+    assert (tmp_path / "from-config" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
+
+
+def test_cli_prepare_requires_project_name_without_config() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["prepare"])
+    assert result.exit_code != 0
+    assert "Project name is required" in result.output
+
+
 def test_results_and_migration_and_logging() -> None:
     run = RunResult(steps=[StepResult(name="a", success=True), StepResult(name="b", success=True)])
     assert run.success
