@@ -79,8 +79,9 @@ def test_validators(config: ProjectConfig) -> None:
     with pytest.raises(ValidationError):
         TemperatureValidator().validate(bad_temp)
 
-    bad_ensemble = config.model_copy(deep=True)
-    object.__setattr__(bad_ensemble.simulation, "ensemble", "BAD")
+    bad_ensemble = config.model_copy(
+        update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})}
+    )
     with pytest.raises(ValidationError):
         EnsembleValidator().validate(bad_ensemble)
 

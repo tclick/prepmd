@@ -58,7 +58,7 @@ class EngineFactory:
         normalized = str(engine_name).lower()
         registry = _build_engine_registry()
         if normalized not in registry:
-            raise EngineError(f"Unsupported engine: {engine_name!r}.  Available: {sorted(registry)}")
+            raise EngineError(f"Unsupported engine: {engine_name!r}. Available: {sorted(registry)}")
         return registry[normalized]()
 
 

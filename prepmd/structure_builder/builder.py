@@ -73,10 +73,6 @@ class StructureBuilder(SimulationPlan):
             try:
                 step_fn()
                 steps.append(StepResult(name=step_name, success=True))
-            except StructureBuildError:
-                steps.append(StepResult(name=step_name, success=False, message=f"{step_name} failed"))
-                self._results = RunResult(steps=steps)
-                raise
             except Exception as exc:
                 steps.append(StepResult(name=step_name, success=False, message=str(exc)))
                 self._results = RunResult(steps=steps)
