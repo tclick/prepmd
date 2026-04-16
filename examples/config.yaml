@@ -2,10 +2,19 @@ project_name: demo_project
 output_dir: .
 protein:
   variants:
-    - wild_type
+    - apo
+    - holo
+  pdb_files:
+    apo: inputs/apo.pdb
+    holo: inputs/holo.pdb
 simulation:
-  replicas: 1
+  replicas: 2
   temperature: 300.0
   ensemble: NVT
+  production_runs: 3
+  production_run_length_ns: 100
 engine:
   name: amber
+  force_field: ff19sb
+  water_model: OPC3
+  options: {}

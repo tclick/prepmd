@@ -46,13 +46,16 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "nox>=2024.10.9",
+    "pre-commit>=4.0.1",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "hypothesis>=6.82.0",
-    "black>=23.10.0",
     "ruff>=0.11.0",
     "basedpyright>=1.22.1",
-    "mypy>=1.7.0",
+    "typeguard>=4.4.2",
+    "sphinx>=8.3.0",
+    "sphinx-rtd-theme>=3.0.2",
     "types-pyyaml>=6.0.12.20240311",
 ]
 
@@ -62,11 +65,6 @@ prepmd = "prepmd.cli.main:main"
 [tool.hatch.build.targets.wheel]
 packages = ["prepmd"]
 
-[tool.black]
-line-length = 120
-target-version = ["py313"]
-include = '\.pyi?$'
-
 [tool.ruff]
 line-length = 120
 target-version = "py313"
@@ -74,16 +72,17 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A"]
 
-[tool.mypy]
-python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = true
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=prepmd --cov-report=html --cov-report=term-missing"
+addopts = "--cov=prepmd --cov-report=html --cov-report=term-missing --typeguard-packages=prepmd"
 
 [tool.basedpyright]
 typeCheckingMode = "strict"
+include = ["prepmd", "tests"]
+
+[tool.typeguard]
+collection-check-strategy = "ALL_ITEMS"
