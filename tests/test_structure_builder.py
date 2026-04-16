@@ -17,3 +17,6 @@ def test_structure_builder_creates_expected_directories(tmp_path: Path) -> None:
     assert root == tmp_path / "proj"
     assert (root / "01_input" / "structures").exists()
     assert (root / "05_simulations" / "wt" / "replica_001" / "04_production").exists()
+    assert (root / "05_simulations" / "wt" / "replica_001" / "README.md").exists()
+    assert (root / "05_simulations" / "wt" / "replica_001" / "PROTOCOL.md").exists()
+    assert (root / "05_simulations" / "wt" / "replica_001" / "04_production" / "run_001").exists()

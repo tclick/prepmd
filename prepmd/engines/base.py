@@ -16,3 +16,7 @@ class Engine(ABC):
     @abstractmethod
     def generate_inputs(self, config: ProjectConfig) -> list[str]:
         """Generate engine-specific input script content."""
+
+    @abstractmethod
+    def prepare_from_pdb(self, pdb_file: str | None, config: ProjectConfig) -> str:
+        """Render engine-specific preparation instructions from a PDB input."""
