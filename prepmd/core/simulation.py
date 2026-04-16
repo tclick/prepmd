@@ -3,12 +3,15 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from prepmd.config.models import ProjectConfig
-
 
 class SimulationPlan(ABC):
-    """Abstract simulation plan."""
+    """Abstract simulation plan.
+
+    Concrete implementations are responsible for constructing the full
+    directory structure and any generated files required to run a
+    molecular-dynamics simulation project.
+    """
 
     @abstractmethod
-    def build(self, output_root: Path, config: ProjectConfig) -> None:
-        """Build a simulation plan on disk."""
+    def build(self) -> Path:
+        """Build the simulation plan on disk and return the root directory."""

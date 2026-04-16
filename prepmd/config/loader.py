@@ -5,6 +5,7 @@ from pathlib import Path
 from prepmd.config.loaders.toml_loader import TOMLConfigLoader
 from prepmd.config.loaders.yaml_loader import YAMLConfigLoader
 from prepmd.config.models import ProjectConfig
+from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.exceptions import ConfigurationError
 
 
@@ -14,6 +15,7 @@ class ConfigLoader:
     def __init__(self) -> None:
         self._yaml = YAMLConfigLoader()
         self._toml = TOMLConfigLoader()
+        self._pipeline = ValidationPipeline()
 
     def load_project_config(self, path: str | Path) -> ProjectConfig:
         file_path = Path(path)
@@ -24,4 +26,6 @@ class ConfigLoader:
         else:
             raise ConfigurationError(f"Unsupported config format: {file_path.suffix}")
 
-        return ProjectConfig.model_validate(data)
+        config = ProjectConfig.model_validate(data)
+        self._pipeline.validate(config)
+        return config
