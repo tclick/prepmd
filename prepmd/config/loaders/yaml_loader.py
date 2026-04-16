@@ -6,6 +6,7 @@ from typing import Any, cast
 import yaml
 
 from prepmd.config.loaders.base import BaseConfigLoader
+from prepmd.exceptions import ConfigurationError
 
 
 class YAMLConfigLoader(BaseConfigLoader):
@@ -16,5 +17,5 @@ class YAMLConfigLoader(BaseConfigLoader):
         if raw is None:
             return {}
         if not isinstance(raw, dict):
-            raise ValueError("YAML config must contain a top-level mapping")
+            raise ConfigurationError("YAML config must contain a top-level mapping")
         return cast(dict[str, Any], raw)

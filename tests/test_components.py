@@ -5,21 +5,23 @@ from typer.testing import CliRunner
 
 from prepmd.caching import memoize
 from prepmd.cli.main import LICENSE_TEXT, app
-from prepmd.config.models import ProjectConfig
+from prepmd.config.models import EngineName, ProjectConfig
 from prepmd.config.validators.compatibility import CompatibilityValidator
 from prepmd.config.validators.ensemble import EnsembleValidator
+from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
 from prepmd.config.versioning import migrate_config
 from prepmd.engines.factory import EngineFactory
-from prepmd.exceptions import ConfigurationError, EngineError, ValidationError
-from prepmd.file_generator.templates.equilibration import render_equilibration
-from prepmd.file_generator.templates.heating import render_heating
-from prepmd.file_generator.templates.minimization import render_minimization
-from prepmd.file_generator.templates.production import render_production
+from prepmd.exceptions import ConfigurationError, EngineError, StructureBuildError, ValidationError
+from prepmd.file_generator.templates.equilibration import EquilibrationFileGenerator, render_equilibration
+from prepmd.file_generator.templates.heating import HeatingFileGenerator, render_heating
+from prepmd.file_generator.templates.minimization import MinimizationFileGenerator, render_minimization
+from prepmd.file_generator.templates.production import ProductionFileGenerator, render_production
 from prepmd.logging_config import configure_logging
 from prepmd.models.results import RunResult, StepResult
 from prepmd.performance import profile
+from prepmd.structure_builder.builder import StructureBuilder
 from prepmd.tleap.builder import build_tleap_commands
 
 
@@ -36,11 +38,31 @@ def test_template_rendering_and_tleap(config: ProjectConfig) -> None:
     assert "source leaprc.protein.ff14SB" in build_tleap_commands(config)
 
 
+def test_file_generator_classes(config: ProjectConfig) -> None:
+    """Concrete FileGenerator subclasses produce the same output as the standalone helpers."""
+    assert MinimizationFileGenerator().render(config) == render_minimization(config)
+    assert HeatingFileGenerator().render(config) == render_heating(config)
+    assert EquilibrationFileGenerator().render(config) == render_equilibration(config)
+    assert ProductionFileGenerator().render(config) == render_production(config)
+
+
+def test_engine_name_enum() -> None:
+    assert EngineName.AMBER == "amber"
+    assert EngineName("gromacs") is EngineName.GROMACS
+    assert str(EngineName.NAMD) == "namd"
+    all_names = {e.value for e in EngineName}
+    assert all_names == {"amber", "gromacs", "namd", "charmm", "openmm"}
+
+
 def test_engine_factory(config: ProjectConfig) -> None:
     engine = EngineFactory.create("amber")
     lines = engine.generate_inputs(config)
     assert engine.name == "amber"
     assert any("Project: demo" in line for line in lines)
+
+    # Also works with EngineName enum
+    engine_via_enum = EngineFactory.create(EngineName.GROMACS)
+    assert engine_via_enum.name == "gromacs"
 
     with pytest.raises(EngineError):
         EngineFactory.create("unknown")
@@ -57,10 +79,24 @@ def test_validators(config: ProjectConfig) -> None:
     with pytest.raises(ValidationError):
         TemperatureValidator().validate(bad_temp)
 
-    bad_ensemble = config.model_copy(deep=True)
-    bad_ensemble.simulation.ensemble = "BAD"
+    bad_ensemble = config.model_copy(
+        update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})}
+    )
     with pytest.raises(ValidationError):
         EnsembleValidator().validate(bad_ensemble)
+
+
+def test_validation_pipeline(config: ProjectConfig) -> None:
+    """ValidationPipeline runs all validators in sequence."""
+    pipeline = ValidationPipeline()
+    pipeline.validate(config)  # valid config passes without exception
+
+    # Custom pipeline with single validator
+    custom = ValidationPipeline(validators=[TemperatureValidator()])
+    bad_temp = config.model_copy(deep=True)
+    bad_temp.simulation.temperature = 9999.0
+    with pytest.raises(ValidationError):
+        custom.validate(bad_temp)
 
 
 def test_memoize_and_profile() -> None:
@@ -178,3 +214,21 @@ def test_unsupported_config_extension(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigurationError):
         ConfigLoader().load_project_config(path)
+
+
+def test_structure_builder_get_results(tmp_path: Path) -> None:
+    """StructureBuilder tracks build steps via RunResult."""
+    cfg = ProjectConfig(project_name="test", output_dir=str(tmp_path))
+    builder = StructureBuilder(cfg)
+    builder.build()
+    results = builder.get_results()
+    assert isinstance(results, RunResult)
+    assert results.success
+    step_names = [s.name for s in results.steps]
+    assert "create_root_directory" in step_names
+    assert "create_simulation_directories" in step_names
+
+
+def test_structure_build_error_exported() -> None:
+    """StructureBuildError is part of the public exception hierarchy."""
+    assert issubclass(StructureBuildError, Exception)

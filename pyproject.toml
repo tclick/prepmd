@@ -62,6 +62,13 @@ dev = [
 [project.scripts]
 prepmd = "prepmd.cli.main:main"
 
+[project.entry-points."prepmd.engines"]
+amber = "prepmd.engines.amber:AmberEngine"
+gromacs = "prepmd.engines.gromacs:GromacsEngine"
+namd = "prepmd.engines.namd:NamdEngine"
+charmm = "prepmd.engines.charmm:CharmmEngine"
+openmm = "prepmd.engines.openmm:OpenmmEngine"
+
 [tool.hatch.build.targets.wheel]
 packages = ["prepmd"]
 

@@ -19,3 +19,7 @@ class EngineError(PrepMDError):
 
 class FileGenerationError(PrepMDError):
     """Raised when file generation fails."""
+
+
+class StructureBuildError(PrepMDError):
+    """Raised when directory structure creation fails."""

@@ -1,6 +1,22 @@
 """Pydantic models for prepmd project configuration."""
 
+from enum import StrEnum
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+class EngineName(StrEnum):
+    """Supported MD simulation engine identifiers."""
+
+    AMBER = "amber"
+    GROMACS = "gromacs"
+    NAMD = "namd"
+    CHARMM = "charmm"
+    OPENMM = "openmm"
+
+
+EnsembleType = Literal["NVT", "NPT", "NVE"]
 
 
 class ProteinConfig(BaseModel):
@@ -27,8 +43,8 @@ class SimulationConfig(BaseModel):
         Number of independent replicas for each variant.
     temperature : float
         Target temperature (K) used for NVT heating.
-    ensemble : str
-        Production ensemble label.
+    ensemble : EnsembleType
+        Production ensemble label (one of NVT, NPT, NVE).
     production_runs : int
         Number of 100-ns production run segments to generate.
     production_run_length_ns : int
@@ -37,7 +53,7 @@ class SimulationConfig(BaseModel):
 
     replicas: int = Field(default=1, ge=1)
     temperature: float = Field(default=300.0, gt=0.0)
-    ensemble: str = Field(default="NVT")
+    ensemble: EnsembleType = "NVT"
     production_runs: int = Field(default=3, ge=1)
     production_run_length_ns: int = Field(default=100, ge=1)
 
@@ -47,7 +63,7 @@ class EngineConfig(BaseModel):
 
     Parameters
     ----------
-    name : str
+    name : EngineName
         Simulation engine name (Amber, NAMD, Gromacs, CHARMM, OpenMM).
     force_field : str
         Selected force field (default: ``ff19sb``).
@@ -57,7 +73,7 @@ class EngineConfig(BaseModel):
         Additional engine-specific options.
     """
 
-    name: str = "amber"
+    name: EngineName = EngineName.AMBER
     force_field: str = "ff19sb"
     water_model: str = "OPC3"
     options: dict[str, str] = Field(default_factory=dict)
