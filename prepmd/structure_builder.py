@@ -33,7 +33,7 @@ class StructureBuilder:
     Attributes:
         config: ProjectConfig with project settings
         root_dir: Root directory for the project
-        _created_dirs: Set of created directory paths (tracking)
+        _created_dirs: set of created directory paths (tracking)
 
     Example:
         >>> config = ProjectConfig(project_name="my_md", ...)
@@ -288,7 +288,7 @@ class StructureBuilder:
         """Get set of all created directories.
 
         Returns:
-            Set of Path objects for created directories
+            set of Path objects for created directories
         """
         return self._created_dirs.copy()
 
