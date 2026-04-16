@@ -1,0 +1,13 @@
+project_name = "demo_project"
+output_dir = "."
+
+[protein]
+variants = ["wild_type"]
+
+[simulation]
+replicas = 1
+temperature = 300.0
+ensemble = "NVT"
+
+[engine]
+name = "amber"
