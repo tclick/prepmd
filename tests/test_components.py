@@ -95,6 +95,28 @@ def test_cli_license_and_setup(tmp_path: Path) -> None:
     setup_result = runner.invoke(app, ["setup", str(config_path)])
     assert setup_result.exit_code == 0
     assert (tmp_path / "cli-demo").exists()
+    assert (tmp_path / "cli-demo" / "05_simulations" / "apo" / "replica_001" / "README.md").exists()
+
+
+def test_cli_prepare(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep",
+            "--output-dir",
+            str(tmp_path),
+            "--replicas",
+            "2",
+            "--engine",
+            "gromacs",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (tmp_path / "prep" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in").exists()
+    assert (tmp_path / "prep" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
 
 
 def test_results_and_migration_and_logging() -> None:
