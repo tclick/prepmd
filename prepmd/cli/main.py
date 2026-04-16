@@ -75,7 +75,7 @@ def prepare(
     summary.add_column("Setting")
     summary.add_column("Value")
     summary.add_row("Project", project_name)
-    summary.add_row("Engine", engine.lower())
+    summary.add_row("Engine", engine)
     summary.add_row("Force field", force_field)
     summary.add_row("Water model", water_model)
     summary.add_row("Replicas/variant", str(replicas))
