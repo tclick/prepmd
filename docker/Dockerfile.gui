@@ -1,0 +1,39 @@
+FROM prepmd:latest
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libdbus-1-3 \
+        libegl1 \
+        libfontconfig1 \
+        libfreetype6 \
+        libgl1 \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcomposite1 \
+        libxcursor1 \
+        libxext6 \
+        libxi6 \
+        libxkbcommon0 \
+        libxkbcommon-x11-0 \
+        libxrandr2 \
+        libxrender1 \
+        libxss1 \
+        libxtst6 \
+        libxcb-cursor0 \
+        libxcb-icccm4 \
+        libxcb-image0 \
+        libxcb-keysyms1 \
+        libxcb-randr0 \
+        libxcb-render-util0 \
+        libxcb-shape0 \
+        libxcb-xfixes0 \
+        x11-apps \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY docker/gui-entrypoint.sh /usr/local/bin/prepmd-gui-entrypoint
+RUN chmod +x /usr/local/bin/prepmd-gui-entrypoint
+
+WORKDIR /work
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/prepmd-gui-entrypoint"]
+CMD []

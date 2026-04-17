@@ -1,0 +1,15 @@
+FROM prepmd:latest
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        less \
+        nano \
+        procps \
+        vim-tiny \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+
+ENTRYPOINT []
+CMD ["/bin/bash"]

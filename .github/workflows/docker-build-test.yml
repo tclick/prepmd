@@ -1,0 +1,46 @@
+name: Docker Build and Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build prepmd Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: |
+            prepmd:ci
+            prepmd:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build development image
+        run: docker build -f docker/Dockerfile.dev -t prepmd-dev:ci .
+
+      - name: Build GUI image
+        run: docker build -f docker/Dockerfile.gui -t prepmd-gui:ci .
+
+      - name: Run lint session in container
+        run: docker run --rm prepmd:ci pixi run -e dev nox -s lint
+
+      - name: Run type session in container
+        run: docker run --rm prepmd:ci pixi run -e dev nox -s type
+
+      - name: Run test session in container
+        run: docker run --rm prepmd:ci pixi run -e dev nox -s test
+
+      - name: Run docs session in container
+        run: docker run --rm prepmd:ci pixi run -e dev nox -s docs

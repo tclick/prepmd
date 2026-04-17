@@ -78,3 +78,8 @@ edge_length = 10.0
 - Checks and formatting: `ruff`, `basedpyright`, `typeguard`, `pytest`, `hypothesis`
 - Git hooks: `.pre-commit-config.yaml`
 - Documentation: Sphinx docs in `docs/` with ReadTheDocs config in `.readthedocs.yml`
+
+## Docker
+
+Containerized CLI/dev/CI/gui (best-effort) workflows are documented in
+[`docker/README.md`](docker/README.md).

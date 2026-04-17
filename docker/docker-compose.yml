@@ -1,0 +1,18 @@
+services:
+  prepmd:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: prepmd:latest
+    working_dir: /work
+    environment:
+      PREPMD_OUTPUT_DIR: /work
+      PREPMD_PDB_CACHE_DIR: /work/.cache/prepmd/pdb
+    volumes:
+      - ${PREPMD_WORKDIR:-.}:/work
+      - prepmd-rattler-cache:/root/.cache/rattler
+    stdin_open: true
+    tty: true
+
+volumes:
+  prepmd-rattler-cache:
