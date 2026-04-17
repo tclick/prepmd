@@ -12,6 +12,4 @@ class EnsembleValidator(BaseValidator):
 
     def validate(self, config: ProjectConfig) -> None:
         if config.simulation.ensemble not in self._allowed:
-            raise ValidationError(
-                f"ensemble must be one of {sorted(self._allowed)}"
-            )
+            raise ValidationError(f"ensemble must be one of {sorted(self._allowed)}")

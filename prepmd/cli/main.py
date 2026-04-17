@@ -223,6 +223,17 @@ def prepare(
         if holo_pdb is not None:
             merged_config.protein.pdb_files["holo"] = str(holo_pdb)
             merged_config.protein.pdb_id = None
+
+        # Guard "neither set" before model_validate so the error is consistent
+        # with the pipeline validator message (not a raw pydantic exception).
+        _has_variant_local = any(v for v in merged_config.protein.pdb_files.values() if v)
+        _has_local = merged_config.protein.pdb_file is not None or _has_variant_local
+        _has_remote = merged_config.protein.pdb_id is not None
+        if not _has_local and not _has_remote:
+            raise PDBMutualExclusivityError(
+                "Specify exactly one PDB input method: local file(s), variant-specific files, or PDB ID."
+            )
+
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
         run_result = run_setup(merged_config, reporter=RichProgressReporter(console))
         root = run_result.root_dir

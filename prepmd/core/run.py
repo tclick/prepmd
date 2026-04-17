@@ -118,7 +118,7 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                 files.append(PlannedFile(replica_dir / "PROTOCOL.md", render_protocol_overview(config)))
                 prepare_files.append(PlannedPrepareFile(replica_dir / f"{engine.name}_prepare.in", variant=variant))
 
-        sorted_directories = tuple(sorted(set(directories), key=lambda path: str(path)))
+        sorted_directories = tuple(sorted(set(directories)))
         sorted_files = tuple(sorted(files, key=lambda planned: str(planned.path)))
         sorted_prepare_files = tuple(sorted(prepare_files, key=lambda planned: str(planned.path)))
         return SimulationPlan(
@@ -157,25 +157,11 @@ def apply_plan(plan: SimulationPlan, reporter: Reporter | None = None) -> SetupR
         for directory in plan.directories:
             advance(f"mkdir {directory}", _mkdir_action(directory))
         for planned_file in plan.files:
-
-            def write_planned_file(planned_file: PlannedFile = planned_file) -> None:
-                planned_file.path.write_text(planned_file.content, encoding="utf-8")
-
-            advance(
-                f"write {planned_file.path}",
-                write_planned_file,
-            )
+            advance(f"write {planned_file.path}", _write_file_action(planned_file))
         for prepare_file in plan.prepare_files:
             pdb_file = plan.config.protein.pdb_files.get(prepare_file.variant) or shared_pdb_file
             contents = engine.prepare_from_pdb(pdb_file, plan.config)
-
-            def write_prepare_file(path: Path = prepare_file.path, contents: str = contents) -> None:
-                path.write_text(contents, encoding="utf-8")
-
-            advance(
-                f"write {prepare_file.path}",
-                write_prepare_file,
-            )
+            advance(f"write {prepare_file.path}", _write_prepare_action(prepare_file.path, contents))
     except Exception as exc:
         active_reporter.on_error(exc)
         raise StructureBuildError(str(exc)) from exc
@@ -232,3 +218,17 @@ def _mkdir_action(directory: Path) -> Callable[[], None]:
         directory.mkdir(parents=True, exist_ok=True)
 
     return do_mkdir
+
+
+def _write_file_action(planned_file: PlannedFile) -> Callable[[], None]:
+    def do_write() -> None:
+        planned_file.path.write_text(planned_file.content, encoding="utf-8")
+
+    return do_write
+
+
+def _write_prepare_action(path: Path, contents: str) -> Callable[[], None]:
+    def do_write() -> None:
+        path.write_text(contents, encoding="utf-8")
+
+    return do_write

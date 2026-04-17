@@ -46,14 +46,18 @@ class ProteinConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_pdb_inputs(self) -> "ProteinConfig":
-        """Enforce exactly one PDB input mode at model-validation time."""
+        """Reject ambiguous PDB input at model-validation time.
+
+        Only the mutually exclusive "both set" case is checked here so that
+        partial construction (e.g. ``ProteinConfig()`` used as a default factory
+        or assembled incrementally via CLI merging) stays valid until the full
+        :class:`prepmd.config.validators.pipeline.ValidationPipeline` runs.
+        """
         has_variant_local = any(path for path in self.pdb_files.values() if path)
         has_local = self.pdb_file is not None or has_variant_local
         has_remote = self.pdb_id is not None
         if has_local and has_remote:
             raise ValueError("Specify either a local PDB file or a PDB ID, not both.")
-        if not has_local and not has_remote:
-            raise ValueError("Specify exactly one PDB input method: local file(s), variant-specific files, or PDB ID.")
         return self
 
 
