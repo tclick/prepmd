@@ -26,6 +26,14 @@ You can also merge config file values with CLI overrides:
 prepmd prepare --config /path/to/config.toml --engine gromacs --replicas 3
 ```
 
+Water-box geometry can be selected from the CLI:
+
+```bash
+prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --box-shape cubic --box-side-length 12.0
+prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --box-shape truncated_octahedron --box-edge-length 10.0
+prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --box-shape orthorhombic --box-dimensions 12 12 15
+```
+
 Download directly from the Protein Data Bank (cached locally):
 
 ```bash
@@ -57,6 +65,10 @@ project_name = "demo"
 [protein]
 pdb_id = "1ABC"
 pdb_cache_dir = "/path/to/cache"
+
+[water_box]
+shape = "truncated_octahedron"
+edge_length = 10.0
 ```
 
 ## Development workflow

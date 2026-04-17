@@ -8,7 +8,7 @@ from rich.table import Table
 
 from prepmd.cli.commands.setup import setup_project
 from prepmd.config.loader import ConfigLoader
-from prepmd.config.models import EngineName, ProjectConfig
+from prepmd.config.models import EngineName, ProjectConfig, WaterBoxShape
 from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.structure_builder.builder import StructureBuilder
@@ -16,6 +16,7 @@ from prepmd.utils.logging import configure_logging
 
 LICENSE_TEXT = "GNU GPL-3.0-or-later"
 SUPPORTED_ENGINES = [e.value for e in EngineName]
+SUPPORTED_BOX_SHAPES = [s.value for s in WaterBoxShape]
 console = Console()
 PROJECT_NAME_OPTIONAL = typer.Option(None, help="Project name.")
 OUTPUT_DIR_OPTIONAL = typer.Option(None, help="Output directory.")
@@ -25,6 +26,11 @@ ENGINE_OPTIONAL = typer.Option(None, help=f"Engine name ({', '.join(SUPPORTED_EN
 FORCE_FIELD_OPTIONAL = typer.Option(None, help="Force field name.")
 WATER_MODEL_OPTIONAL = typer.Option(None, help="Water model name.")
 PRODUCTION_RUNS_OPTIONAL = typer.Option(None, min=1, help="Number of 100-ns production segments.")
+BOX_SHAPE_OPTION = typer.Option(None, help=f"Water box shape ({', '.join(SUPPORTED_BOX_SHAPES)}).")
+BOX_SIDE_LENGTH_OPTION = typer.Option(None, min=0.1, help="Water box side length in Å (cubic).")
+BOX_EDGE_LENGTH_OPTION = typer.Option(None, min=0.1, help="Water box edge length in Å (truncated octahedron).")
+BOX_DIMENSIONS_OPTION = typer.Option(None, help="Water box dimensions X Y Z in Å (orthorhombic).")
+AUTO_BOX_PADDING_OPTION = typer.Option(None, min=0.1, help="Automatic box padding in Å (default 10.0).")
 PDB_FILE_OPTION = typer.Option(None, help="Input PDB file path.")
 PDB_ID_OPTION = typer.Option(None, help="RCSB PDB ID to download (4 alphanumeric chars).")
 PDB_CACHE_DIR_OPTION = typer.Option(None, help="Cache directory for downloaded PDB files.")
@@ -67,6 +73,11 @@ def prepare(
     force_field: str | None = FORCE_FIELD_OPTIONAL,
     water_model: str | None = WATER_MODEL_OPTIONAL,
     production_runs: int | None = PRODUCTION_RUNS_OPTIONAL,
+    box_shape: str | None = BOX_SHAPE_OPTION,
+    box_side_length: float | None = BOX_SIDE_LENGTH_OPTION,
+    box_edge_length: float | None = BOX_EDGE_LENGTH_OPTION,
+    box_dimensions: tuple[float, float, float] | None = BOX_DIMENSIONS_OPTION,
+    auto_box_padding: float | None = AUTO_BOX_PADDING_OPTION,
     pdb_file: Path | None = PDB_FILE_OPTION,
     pdb_id: str | None = PDB_ID_OPTION,
     pdb_cache_dir: Path | None = PDB_CACHE_DIR_OPTION,
@@ -99,6 +110,25 @@ def prepare(
             merged_config.simulation.temperature = temperature
         if production_runs is not None:
             merged_config.simulation.production_runs = production_runs
+        if box_shape is not None:
+            merged_config.water_box.shape = WaterBoxShape(box_shape.lower())
+        if auto_box_padding is not None:
+            merged_config.water_box.auto_box_padding = auto_box_padding
+        if box_side_length is not None:
+            merged_config.water_box.shape = WaterBoxShape.CUBIC
+            merged_config.water_box.side_length = box_side_length
+            merged_config.water_box.edge_length = None
+            merged_config.water_box.dimensions = None
+        if box_edge_length is not None:
+            merged_config.water_box.shape = WaterBoxShape.TRUNCATED_OCTAHEDRON
+            merged_config.water_box.edge_length = box_edge_length
+            merged_config.water_box.side_length = None
+            merged_config.water_box.dimensions = None
+        if box_dimensions is not None:
+            merged_config.water_box.shape = WaterBoxShape.ORTHORHOMBIC
+            merged_config.water_box.dimensions = box_dimensions
+            merged_config.water_box.side_length = None
+            merged_config.water_box.edge_length = None
         if engine is not None:
             merged_config.engine.name = EngineName(engine.lower())
         if force_field is not None:
@@ -122,6 +152,7 @@ def prepare(
             merged_config.protein.pdb_files["holo"] = str(holo_pdb)
             merged_config.protein.pdb_id = None
 
+        merged_config = ProjectConfig.model_validate(merged_config.model_dump())
         ValidationPipeline().validate(merged_config)
         root = StructureBuilder(merged_config).build()
     except PrepMDError as exc:
@@ -135,6 +166,7 @@ def prepare(
     summary.add_row("Engine", merged_config.engine.name)
     summary.add_row("Force field", merged_config.engine.force_field)
     summary.add_row("Water model", merged_config.engine.water_model)
+    summary.add_row("Water box shape", merged_config.water_box.shape)
     summary.add_row("Replicas/variant", str(merged_config.simulation.replicas))
     summary.add_row("Output", str(root))
     console.print(summary)
