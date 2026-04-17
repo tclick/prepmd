@@ -1,6 +1,5 @@
 """Command line entrypoint."""
 
-import json
 from pathlib import Path
 from typing import cast
 
@@ -11,7 +10,14 @@ from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextC
 from rich.table import Table
 
 from prepmd.cli.commands.setup import setup_project
-from prepmd.cli.run_artifacts import build_manifest, plan_preview, write_debug_bundle, write_manifest
+from prepmd.cli.run_artifacts import (
+    build_manifest,
+    plan_preview,
+    read_generated_files,
+    stable_json,
+    write_debug_bundle,
+    write_manifest,
+)
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import (
     EngineConfig,
@@ -258,8 +264,7 @@ def prepare(
         logs: list[str] = []
         root = plan.root_dir
         if dry_run:
-            predicted_prepare = render_prepare_files(plan, resolve_remote_pdb=False)
-            generated_files = tuple(sorted((*plan.files, *predicted_prepare), key=lambda item: str(item.path)))
+            generated_files = _collect_generated_files(plan, dry_run=True)
             logs.append("Dry-run mode enabled; skipped apply step.")
             console.print("[bold yellow]Dry-run:[/bold yellow] no project files were written.")
         else:
@@ -267,12 +272,12 @@ def prepare(
             setup_result = apply_plan(plan, reporter=reporter)
             run_result = setup_result.result
             logs.extend(reporter.logs)
-            generated_files = _read_generated_files(plan)
+            generated_files = _collect_generated_files(plan, dry_run=False)
 
         manifest = build_manifest(merged_config, plan, generated_files, dry_run=dry_run)
         preview = plan_preview(plan, generated_files)
         if dry_run:
-            console.print_json(json.dumps(manifest, indent=2, sort_keys=True))
+            console.print_json(stable_json(manifest))
         else:
             manifest_path = root / "manifest.json"
             write_manifest(manifest_path, manifest)
@@ -319,10 +324,8 @@ def main() -> None:
     app()
 
 
-def _read_generated_files(plan: SimulationPlan) -> tuple[PlannedFile, ...]:
-    generated: list[PlannedFile] = []
-    for planned_file in plan.files:
-        generated.append(PlannedFile(planned_file.path, planned_file.path.read_text(encoding="utf-8")))
-    for prepare_file in plan.prepare_files:
-        generated.append(PlannedFile(prepare_file.path, prepare_file.path.read_text(encoding="utf-8")))
-    return tuple(sorted(generated, key=lambda item: str(item.path)))
+def _collect_generated_files(plan: SimulationPlan, *, dry_run: bool) -> tuple[PlannedFile, ...]:
+    if dry_run:
+        predicted_prepare = render_prepare_files(plan, download_remote_pdb=False)
+        return tuple(sorted((*plan.files, *predicted_prepare), key=lambda item: str(item.path)))
+    return read_generated_files(plan)

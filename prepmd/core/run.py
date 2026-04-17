@@ -175,11 +175,11 @@ def run_setup(config: ProjectConfig, reporter: Reporter | None = None) -> SetupR
     return apply_plan(plan, reporter=reporter)
 
 
-def render_prepare_files(plan: SimulationPlan, *, resolve_remote_pdb: bool = True) -> tuple[PlannedFile, ...]:
+def render_prepare_files(plan: SimulationPlan, *, download_remote_pdb: bool = True) -> tuple[PlannedFile, ...]:
     """Render deterministic prepare-file contents for a plan."""
     engine = EngineFactory.create(plan.config.engine.name)
     shared_pdb_file = (
-        _resolve_shared_pdb_file(plan.config) if resolve_remote_pdb else _resolve_plan_pdb_reference(plan.config)
+        _resolve_shared_pdb_file(plan.config) if download_remote_pdb else _resolve_plan_pdb_reference(plan.config)
     )
     rendered: list[PlannedFile] = []
     for prepare_file in plan.prepare_files:
