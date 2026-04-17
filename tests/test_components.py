@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from prepmd.caching import memoize
 from prepmd.cli.main import LICENSE_TEXT, app
-from prepmd.config.models import EngineName, ProjectConfig
+from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig
 from prepmd.config.validators.compatibility import CompatibilityValidator
 from prepmd.config.validators.ensemble import EnsembleValidator
 from prepmd.config.validators.pipeline import ValidationPipeline
@@ -27,7 +27,7 @@ from prepmd.tleap.builder import build_tleap_commands
 
 @pytest.fixture
 def config() -> ProjectConfig:
-    return ProjectConfig(project_name="demo")
+    return ProjectConfig(project_name="demo", protein=ProteinConfig(pdb_file="/tmp/input.pdb"))
 
 
 def test_template_rendering_and_tleap(config: ProjectConfig) -> None:
@@ -125,7 +125,7 @@ def test_cli_license_and_setup(tmp_path: Path) -> None:
 
     config_path = tmp_path / "cfg.yaml"
     config_path.write_text(
-        f"project_name: cli-demo\noutput_dir: {tmp_path}\n",
+        f"project_name: cli-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
         encoding="utf-8",
     )
     setup_result = runner.invoke(app, ["setup", str(config_path)])
@@ -148,6 +148,8 @@ def test_cli_prepare(tmp_path: Path) -> None:
             "2",
             "--engine",
             "gromacs",
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
         ],
     )
     assert result.exit_code == 0
@@ -162,6 +164,8 @@ def test_cli_prepare_with_config_and_cli_overrides(tmp_path: Path) -> None:
         (
             'project_name = "from-config"\n'
             f'output_dir = "{tmp_path}"\n'
+            "[protein]\n"
+            'pdb_file = "/tmp/input.pdb"\n'
             "[simulation]\n"
             "replicas = 1\n"
             "[engine]\n"
@@ -194,6 +198,39 @@ def test_cli_prepare_requires_project_name_without_config() -> None:
     result = runner.invoke(app, ["prepare"])
     assert result.exit_code != 0
     assert "Project name is required" in result.output
+
+
+def test_cli_prepare_requires_exactly_one_pdb_input(tmp_path: Path) -> None:
+    runner = CliRunner()
+    no_input = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    )
+    assert no_input.exit_code != 0
+    assert "Specify exactly one PDB input method" in no_input.output
+
+    both_input = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--pdb-id",
+            "1abc",
+        ],
+    )
+    assert both_input.exit_code != 0
+    assert "Specify either a local PDB file or a PDB ID" in both_input.output
 
 
 def test_results_and_migration_and_logging() -> None:

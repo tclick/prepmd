@@ -9,7 +9,8 @@ from rich.table import Table
 from prepmd.cli.commands.setup import setup_project
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import EngineName, ProjectConfig
-from prepmd.exceptions import PrepMDError
+from prepmd.config.validators.pipeline import ValidationPipeline
+from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.structure_builder.builder import StructureBuilder
 from prepmd.utils.logging import configure_logging
 
@@ -24,6 +25,9 @@ ENGINE_OPTIONAL = typer.Option(None, help=f"Engine name ({', '.join(SUPPORTED_EN
 FORCE_FIELD_OPTIONAL = typer.Option(None, help="Force field name.")
 WATER_MODEL_OPTIONAL = typer.Option(None, help="Water model name.")
 PRODUCTION_RUNS_OPTIONAL = typer.Option(None, min=1, help="Number of 100-ns production segments.")
+PDB_FILE_OPTION = typer.Option(None, help="Input PDB file path.")
+PDB_ID_OPTION = typer.Option(None, help="RCSB PDB ID to download (4 alphanumeric chars).")
+PDB_CACHE_DIR_OPTION = typer.Option(None, help="Cache directory for downloaded PDB files.")
 APO_PDB_OPTION = typer.Option(None, help="Apo input PDB file.")
 HOLO_PDB_OPTION = typer.Option(None, help="Holo input PDB file.")
 CONFIG_OPTION = typer.Option(
@@ -63,6 +67,9 @@ def prepare(
     force_field: str | None = FORCE_FIELD_OPTIONAL,
     water_model: str | None = WATER_MODEL_OPTIONAL,
     production_runs: int | None = PRODUCTION_RUNS_OPTIONAL,
+    pdb_file: Path | None = PDB_FILE_OPTION,
+    pdb_id: str | None = PDB_ID_OPTION,
+    pdb_cache_dir: Path | None = PDB_CACHE_DIR_OPTION,
     apo_pdb: Path | None = APO_PDB_OPTION,
     holo_pdb: Path | None = HOLO_PDB_OPTION,
     config: Path | None = CONFIG_OPTION,
@@ -81,6 +88,9 @@ def prepare(
         merged_config = base_config.model_copy(deep=True)
         merged_config.project_name = selected_project_name
 
+        if pdb_id is not None and (pdb_file is not None or apo_pdb is not None or holo_pdb is not None):
+            raise PDBMutualExclusivityError("Specify either a local PDB file or a PDB ID, not both.")
+
         if output_dir is not None:
             merged_config.output_dir = str(output_dir)
         if replicas is not None:
@@ -95,11 +105,23 @@ def prepare(
             merged_config.engine.force_field = force_field
         if water_model is not None:
             merged_config.engine.water_model = water_model
+        if pdb_file is not None:
+            merged_config.protein.pdb_file = str(pdb_file)
+            merged_config.protein.pdb_id = None
+        if pdb_id is not None:
+            merged_config.protein.pdb_id = pdb_id
+            merged_config.protein.pdb_file = None
+            merged_config.protein.pdb_files = {}
+        if pdb_cache_dir is not None:
+            merged_config.protein.pdb_cache_dir = str(pdb_cache_dir)
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
+            merged_config.protein.pdb_id = None
         if holo_pdb is not None:
             merged_config.protein.pdb_files["holo"] = str(holo_pdb)
+            merged_config.protein.pdb_id = None
 
+        ValidationPipeline().validate(merged_config)
         root = StructureBuilder(merged_config).build()
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")

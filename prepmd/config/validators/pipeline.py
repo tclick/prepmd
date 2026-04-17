@@ -4,6 +4,7 @@ from prepmd.config.models import ProjectConfig
 from prepmd.config.validators.base import BaseValidator
 from prepmd.config.validators.compatibility import CompatibilityValidator
 from prepmd.config.validators.ensemble import EnsembleValidator
+from prepmd.config.validators.pdb_input import PDBInputValidator
 from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
 
@@ -24,6 +25,7 @@ class ValidationPipeline:
     def __init__(self, validators: list[BaseValidator] | None = None) -> None:
         self._validators: list[BaseValidator] = validators if validators is not None else [
             TemperatureValidator(),
+            PDBInputValidator(),
             EnsembleValidator(),
             RestraintValidator(),
             CompatibilityValidator(),

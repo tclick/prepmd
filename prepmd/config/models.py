@@ -32,6 +32,9 @@ class ProteinConfig(BaseModel):
 
     variants: list[str] = Field(default_factory=lambda: ["apo", "holo"])
     pdb_files: dict[str, str | None] = Field(default_factory=dict)
+    pdb_file: str | None = None
+    pdb_id: str | None = None
+    pdb_cache_dir: str | None = None
 
 
 class SimulationConfig(BaseModel):
