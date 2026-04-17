@@ -1,6 +1,7 @@
-FROM python:3.13-slim
+ARG PIXI_VERSION=0.67.0
+FROM ghcr.io/prefix-dev/pixi:${PIXI_VERSION} AS pixi-source
 
-ARG PIXI_VERSION=v0.67.0
+FROM python:3.13-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
@@ -9,13 +10,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
         ca-certificates \
-        curl \
         git \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL "https://github.com/prefix-dev/pixi/releases/download/${PIXI_VERSION}/pixi-x86_64-unknown-linux-musl.tar.gz" \
-    | tar -xz -C /usr/local/bin pixi
+COPY --from=pixi-source /usr/local/bin/pixi /usr/local/bin/pixi
 
 WORKDIR /app
 

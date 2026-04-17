@@ -26,6 +26,8 @@ jobs:
           tags: |
             prepmd:ci
             prepmd:latest
+          build-args: |
+            PIXI_VERSION=0.67.0
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
