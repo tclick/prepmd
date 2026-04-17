@@ -1,20 +1,24 @@
 """Command line entrypoint."""
 
 from pathlib import Path
+from typing import cast
 
 import typer
+from pydantic import ValidationError as PydanticValidationError
 from rich.console import Console
+from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextColumn
 from rich.table import Table
 
 from prepmd.cli.commands.setup import setup_project
 from prepmd.config.loader import ConfigLoader
-from prepmd.config.models import EngineName, ProjectConfig, WaterBoxShape
-from prepmd.config.validators.pipeline import ValidationPipeline
+from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig, WaterBoxShape
+from prepmd.core.run import run_setup
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
-from prepmd.structure_builder.builder import StructureBuilder
+from prepmd.models.results import RunResult
 from prepmd.utils.logging import configure_logging
 
 LICENSE_TEXT = "GNU GPL-3.0-or-later"
+CLI_PDB_PLACEHOLDER = "__pending_cli_pdb_input__"
 SUPPORTED_ENGINES = [e.value for e in EngineName]
 SUPPORTED_BOX_SHAPES = [s.value for s in WaterBoxShape]
 console = Console()
@@ -44,6 +48,58 @@ CONFIG_OPTION = typer.Option(
 )
 
 app = typer.Typer(help="prepmd CLI")
+
+
+class RichProgressReporter:
+    """Reporter implementation using Rich progress + console logs."""
+
+    def __init__(self, rich_console: Console) -> None:
+        self._console = rich_console
+        self._progress = Progress(
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=rich_console,
+            transient=True,
+        )
+        self._task_id: TaskID | None = None
+
+    def on_start(self, total_steps: int) -> None:
+        self._progress.start()
+        self._task_id = self._progress.add_task("Preparing project", total=max(total_steps, 1))
+
+    def on_step(self, current_step: int, total_steps: int, message: str) -> None:
+        if self._task_id is None:
+            self.on_start(total_steps)
+        if self._task_id is not None:
+            self._progress.update(self._task_id, completed=current_step, description=message)
+
+    def on_log(self, message: str) -> None:
+        self._console.print(message)
+
+    def on_error(self, error: BaseException) -> None:
+        self._console.print(f"[bold red]Error:[/bold red] {error}")
+        self._progress.stop()
+
+    def on_finish(self, result: RunResult) -> None:
+        _ = result
+        self._progress.stop()
+
+
+def _render_exception_group(exc: ExceptionGroup, title: str = "Errors") -> None:
+    console.print(f"[bold red]{title}:[/bold red]")
+    for line in _flatten_exception_group(exc):
+        console.print(f"- {line}")
+
+
+def _flatten_exception_group(exc: BaseExceptionGroup[BaseException]) -> list[str]:
+    messages: list[str] = []
+    for sub_exc in exc.exceptions:
+        if isinstance(sub_exc, BaseExceptionGroup):
+            messages.extend(_flatten_exception_group(cast(BaseExceptionGroup[BaseException], sub_exc)))
+        else:
+            messages.append(str(sub_exc))
+    return messages
 
 
 @app.command("license")
@@ -95,7 +151,10 @@ def prepare(
         if selected_project_name is None:
             raise typer.BadParameter("Project name is required when --config is not provided.")
 
-        base_config = project_config or ProjectConfig(project_name=selected_project_name)
+        base_config = project_config or ProjectConfig(
+            project_name=selected_project_name,
+            protein=ProteinConfig(pdb_file=CLI_PDB_PLACEHOLDER),
+        )
         merged_config = base_config.model_copy(deep=True)
         merged_config.project_name = selected_project_name
 
@@ -151,10 +210,21 @@ def prepare(
         if holo_pdb is not None:
             merged_config.protein.pdb_files["holo"] = str(holo_pdb)
             merged_config.protein.pdb_id = None
+        if merged_config.protein.pdb_file == CLI_PDB_PLACEHOLDER:
+            merged_config.protein.pdb_file = None
 
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
-        ValidationPipeline().validate(merged_config)
-        root = StructureBuilder(merged_config).build()
+        run_result = run_setup(merged_config, reporter=RichProgressReporter(console))
+        root = run_result.root_dir
+    except ExceptionGroup as exc:
+        _render_exception_group(exc, "Validation errors")
+        raise typer.Exit(code=1) from exc
+    except PydanticValidationError as exc:
+        console.print("[bold red]Validation errors:[/bold red]")
+        for error in exc.errors():
+            location = ".".join(str(part) for part in error["loc"])
+            console.print(f"- {location}: {error['msg']}")
+        raise typer.Exit(code=1) from exc
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc

@@ -79,9 +79,7 @@ def test_validators(config: ProjectConfig) -> None:
     with pytest.raises(ValidationError):
         TemperatureValidator().validate(bad_temp)
 
-    bad_ensemble = config.model_copy(
-        update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})}
-    )
+    bad_ensemble = config.model_copy(update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})})
     with pytest.raises(ValidationError):
         EnsembleValidator().validate(bad_ensemble)
 
@@ -282,7 +280,7 @@ def test_unsupported_config_extension(tmp_path: Path) -> None:
 
 def test_structure_builder_get_results(tmp_path: Path) -> None:
     """StructureBuilder tracks build steps via RunResult."""
-    cfg = ProjectConfig(project_name="test", output_dir=str(tmp_path))
+    cfg = ProjectConfig(project_name="test", output_dir=str(tmp_path), protein=ProteinConfig(pdb_file="/tmp/input.pdb"))
     builder = StructureBuilder(cfg)
     builder.build()
     results = builder.get_results()

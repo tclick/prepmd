@@ -2,7 +2,7 @@ from math import sqrt
 
 import pytest
 
-from prepmd.config.models import EngineName, ProjectConfig, WaterBoxConfig, WaterBoxShape
+from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig, WaterBoxConfig, WaterBoxShape
 from prepmd.core.box_geometry import CubicBox, OrthorhombicBox, TruncatedOctahedronBox, build_box_geometry
 from prepmd.engines.factory import EngineFactory
 from prepmd.exceptions import BoxShapeNotSupportedError, InvalidBoxDimensionsError
@@ -45,7 +45,7 @@ def test_build_box_geometry_from_config() -> None:
 
 
 def test_engine_rejects_unsupported_box_shape() -> None:
-    config = ProjectConfig(project_name="demo")
+    config = ProjectConfig(project_name="demo", protein=ProteinConfig(pdb_file="/tmp/input.pdb"))
     config.engine.name = EngineName.NAMD
     config.water_box = WaterBoxConfig(shape=WaterBoxShape.TRUNCATED_OCTAHEDRON, edge_length=10.0)
     engine = EngineFactory.create(config.engine.name)
