@@ -37,6 +37,7 @@ class OpenmmEngine(Engine):
             f"ff = ForceField('{config.engine.force_field}.xml', '{config.engine.water_model}.xml')\n"
             "modeller = Modeller(pdb.topology, pdb.positions)\n"
             f"box_vectors = ({x:.3f}, {y:.3f}, {z:.3f})\n"
-            f"modeller.addSolvent(ff, boxSize=box_vectors, model='{config.water_box.shape}')\n"
+            f"modeller.addSolvent(ff, boxSize=box_vectors, model='{config.engine.water_model.lower()}')\n"
+            f"# box shape: {config.water_box.shape}\n"
             f"# suggested cutoff {cutoff:.3f} spacing {spacing:.3f}\n"
         )

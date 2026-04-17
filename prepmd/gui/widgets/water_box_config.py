@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QDoubleSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from prepmd.config.models import WaterBoxConfig, WaterBoxShape
 from prepmd.core.box_geometry import build_box_geometry
+
+WATER_MOLECULE_DENSITY_PER_A3 = 0.0334
 
 
 class WaterBoxConfigWidget(QGroupBox):
@@ -23,7 +25,8 @@ class WaterBoxConfigWidget(QGroupBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Water Box", parent)
         self._shape = QComboBox()
-        self._shape.addItems([s.value for s in WaterBoxShape])
+        for shape in WaterBoxShape:
+            self._shape.addItem(shape.value)
 
         self._side_length = self._build_spinbox()
         self._edge_length = self._build_spinbox()
@@ -93,7 +96,7 @@ class WaterBoxConfigWidget(QGroupBox):
             return
         self._validation_label.setText("Configuration valid")
         self._volume_label.setText(f"Volume: {geometry.volume:.2f} Å³")
-        estimated_waters = geometry.volume * 0.0334
+        estimated_waters = geometry.volume * WATER_MOLECULE_DENSITY_PER_A3
         self._water_estimate_label.setText(f"Estimated waters: {estimated_waters:.0f}")
 
     def get_value(self) -> WaterBoxConfig:
@@ -107,3 +110,15 @@ class WaterBoxConfigWidget(QGroupBox):
             shape=shape,
             dimensions=(self._x_dim.value(), self._y_dim.value(), self._z_dim.value()),
         )
+
+    def set_shape(self, shape: WaterBoxShape) -> None:
+        """Set the active shape in the widget."""
+        self._shape.setCurrentText(shape.value)
+
+    def validation_text(self) -> str:
+        """Return current validation text."""
+        return self._validation_label.text()
+
+    def volume_text(self) -> str:
+        """Return current volume text."""
+        return self._volume_label.text()

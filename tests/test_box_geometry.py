@@ -2,7 +2,7 @@ from math import sqrt
 
 import pytest
 
-from prepmd.config.models import ProjectConfig, WaterBoxConfig, WaterBoxShape
+from prepmd.config.models import EngineName, ProjectConfig, WaterBoxConfig, WaterBoxShape
 from prepmd.core.box_geometry import CubicBox, OrthorhombicBox, TruncatedOctahedronBox, build_box_geometry
 from prepmd.engines.factory import EngineFactory
 from prepmd.exceptions import BoxShapeNotSupportedError, InvalidBoxDimensionsError
@@ -10,16 +10,16 @@ from prepmd.exceptions import BoxShapeNotSupportedError, InvalidBoxDimensionsErr
 
 def test_box_geometry_volume_and_surface_area() -> None:
     cubic = CubicBox(side_length=10.0)
-    assert cubic.volume == pytest.approx(1000.0)
-    assert cubic.surface_area == pytest.approx(600.0)
+    assert cubic.volume == 1000.0
+    assert cubic.surface_area == 600.0
 
     octa = TruncatedOctahedronBox(edge_length=10.0)
-    assert octa.volume == pytest.approx(8.0 * sqrt(2.0) * (10.0**3))
-    assert octa.surface_area == pytest.approx(6.0 * (1.0 + (2.0 * sqrt(3.0))) * (10.0**2))
+    assert abs(octa.volume - (8.0 * sqrt(2.0) * (10.0**3))) < 1e-9
+    assert abs(octa.surface_area - (6.0 * (1.0 + (2.0 * sqrt(3.0))) * (10.0**2))) < 1e-9
 
     ortho = OrthorhombicBox(10.0, 12.0, 15.0)
-    assert ortho.volume == pytest.approx(1800.0)
-    assert ortho.surface_area == pytest.approx(900.0)
+    assert ortho.volume == 1800.0
+    assert ortho.surface_area == 900.0
 
 
 def test_box_geometry_validation() -> None:
@@ -46,7 +46,7 @@ def test_build_box_geometry_from_config() -> None:
 
 def test_engine_rejects_unsupported_box_shape() -> None:
     config = ProjectConfig(project_name="demo")
-    config.engine.name = "namd"
+    config.engine.name = EngineName.NAMD
     config.water_box = WaterBoxConfig(shape=WaterBoxShape.TRUNCATED_OCTAHEDRON, edge_length=10.0)
     engine = EngineFactory.create(config.engine.name)
 
