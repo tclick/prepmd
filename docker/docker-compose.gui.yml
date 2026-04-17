@@ -1,0 +1,19 @@
+services:
+  prepmd-gui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gui
+    image: prepmd-gui:latest
+    working_dir: /work
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+      QT_X11_NO_MITSHM: "1"
+    volumes:
+      - ${PREPMD_WORKDIR:-.}:/work
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - prepmd-rattler-cache:/root/.cache/rattler
+    stdin_open: true
+    tty: true
+
+volumes:
+  prepmd-rattler-cache:

@@ -1,0 +1,15 @@
+services:
+  prepmd-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    image: prepmd-dev:latest
+    working_dir: /work
+    volumes:
+      - ..:/work
+      - prepmd-rattler-cache:/root/.cache/rattler
+    stdin_open: true
+    tty: true
+
+volumes:
+  prepmd-rattler-cache:
