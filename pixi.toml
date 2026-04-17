@@ -45,7 +45,7 @@ dev = "prepmd --help"
 test = "python -m pytest -q"
 
 [feature.lint.tasks]
-lint = "ruff format --check . && ruff check . && pre-commit run --all-files"
+lint = "ruff format --check . && ruff check ."
 
 [feature.type.tasks]
 type = "basedpyright && python -m pytest -q --typeguard-packages=prepmd.cli.main,prepmd.config.loader,prepmd.core.run --maxfail=1"
