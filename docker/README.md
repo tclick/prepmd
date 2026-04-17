@@ -6,7 +6,7 @@ This directory provides Docker workflows for reproducible CLI usage, development
 
 ## 1) Build images
 
-From the repository root (`/home/runner/work/prepmd/prepmd`):
+From the repository root:
 
 ```bash
 docker build -f docker/Dockerfile -t prepmd:latest .

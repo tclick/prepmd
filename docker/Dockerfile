@@ -1,5 +1,7 @@
 FROM python:3.13-slim
 
+ARG PIXI_VERSION=v0.67.0
+
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
 
@@ -12,7 +14,7 @@ RUN apt-get update \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-unknown-linux-musl.tar.gz \
+RUN curl -fsSL "https://github.com/prefix-dev/pixi/releases/download/${PIXI_VERSION}/pixi-x86_64-unknown-linux-musl.tar.gz" \
     | tar -xz -C /usr/local/bin pixi
 
 WORKDIR /app
@@ -23,8 +25,11 @@ COPY prepmd /app/prepmd
 
 RUN pixi install
 
-# Copy the remaining project files.
-COPY . /app
+# Copy files used by lint/type/test/docs sessions.
+COPY tests /app/tests
+COPY docs /app/docs
+COPY examples /app/examples
+COPY .pre-commit-config.yaml .readthedocs.yml Makefile CHANGELOG.md CONTRIBUTING.md /app/
 
 COPY docker/entrypoint.sh /usr/local/bin/prepmd-entrypoint
 RUN chmod +x /usr/local/bin/prepmd-entrypoint
