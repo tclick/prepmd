@@ -200,7 +200,7 @@ def test_cli_prepare_requires_project_name_without_config() -> None:
     assert "Project name is required" in result.output
 
 
-def test_cli_prepare_requires_exactly_one_pdb_input(tmp_path: Path) -> None:
+def test_cli_prepare_enforces_pdb_input_mutual_exclusivity(tmp_path: Path) -> None:
     runner = CliRunner()
     no_input = runner.invoke(
         app,

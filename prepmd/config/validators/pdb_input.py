@@ -18,6 +18,8 @@ class PDBInputValidator(BaseValidator):
         if has_local and has_remote:
             raise PDBMutualExclusivityError("Specify either a local PDB file or a PDB ID, not both.")
         if not has_local and not has_remote:
-            raise PDBMutualExclusivityError("Specify exactly one PDB input method: local file or PDB ID.")
+            raise PDBMutualExclusivityError(
+                "Specify exactly one PDB input method: local file(s), variant-specific files, or PDB ID."
+            )
         if protein.pdb_id is not None:
-            protein.pdb_id = validate_pdb_id(protein.pdb_id)
+            validate_pdb_id(protein.pdb_id)

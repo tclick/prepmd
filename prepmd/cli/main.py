@@ -108,6 +108,7 @@ def prepare(
         if pdb_file is not None:
             merged_config.protein.pdb_file = str(pdb_file)
             merged_config.protein.pdb_id = None
+            merged_config.protein.pdb_files = {}
         if pdb_id is not None:
             merged_config.protein.pdb_id = pdb_id
             merged_config.protein.pdb_file = None

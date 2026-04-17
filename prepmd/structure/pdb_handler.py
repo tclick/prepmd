@@ -15,7 +15,9 @@ PDB_ID_PATTERN = re.compile(r"^[A-Za-z0-9]{4}$")
 
 def validate_pdb_id(pdb_id: str) -> str:
     """Validate and normalize a PDB ID."""
-    normalized = pdb_id.strip().upper()
+    if pdb_id != pdb_id.strip():
+        raise PDBValidationError("PDB ID must not include leading or trailing whitespace.")
+    normalized = pdb_id.upper()
     if not PDB_ID_PATTERN.fullmatch(normalized):
         raise PDBValidationError("PDB ID must be exactly 4 alphanumeric characters.")
     return normalized
@@ -24,10 +26,17 @@ def validate_pdb_id(pdb_id: str) -> str:
 class PDBHandler:
     """Retrieve and cache PDB files from the Protein Data Bank."""
 
-    def __init__(self, cache_dir: Path | None = None, retries: int = 3, backoff_seconds: float = 1.0) -> None:
+    def __init__(
+        self,
+        cache_dir: Path | None = None,
+        retries: int = 3,
+        backoff_seconds: float = 1.0,
+        max_backoff_seconds: float = 30.0,
+    ) -> None:
         self.cache_dir = cache_dir or Path.home() / ".cache" / "prepmd" / "pdb"
         self.retries = retries
         self.backoff_seconds = backoff_seconds
+        self.max_backoff_seconds = max_backoff_seconds
 
     def cache_path(self, pdb_id: str) -> Path:
         """Return cache file path for a PDB ID."""
@@ -69,11 +78,11 @@ class PDBHandler:
                     downloaded.replace(cached)
                 logger.info(f"Downloaded PDB {normalized} to {cached}")
                 return cached
-            except Exception as exc:  # pragma: no cover - broad by design for network/backend failures
+            except (OSError, RuntimeError, ValueError) as exc:
                 last_error = exc
                 if attempt >= self.retries:
                     break
-                sleep_time = self.backoff_seconds * (2 ** (attempt - 1))
+                sleep_time = min(self.backoff_seconds * (2 ** (attempt - 1)), self.max_backoff_seconds)
                 logger.warning(f"PDB download failed for {normalized}: {exc}. Retrying in {sleep_time:.2f}s.")
                 time.sleep(sleep_time)
         raise PDBDownloadError(f"Failed to download PDB '{normalized}' after {self.retries} attempts.") from last_error

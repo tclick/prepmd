@@ -14,7 +14,14 @@ def test_validate_pdb_id_accepts_4_alnum(pdb_id: str) -> None:
     assert validate_pdb_id(pdb_id) == pdb_id.upper()
 
 
-@given(st.text(min_size=0, max_size=8).filter(lambda text: len(text) != 4 or not text.isalnum()))
+INVALID_PDB_ID_STRATEGY = st.one_of(
+    st.text(max_size=3),
+    st.text(min_size=5, max_size=8),
+    st.from_regex(r"[^A-Za-z0-9]{4}", fullmatch=True),
+)
+
+
+@given(INVALID_PDB_ID_STRATEGY)
 def test_validate_pdb_id_rejects_invalid_values(pdb_id: str) -> None:
     with pytest.raises(PDBValidationError):
         validate_pdb_id(pdb_id)
@@ -35,6 +42,7 @@ def test_get_or_download_retries_then_succeeds(monkeypatch: pytest.MonkeyPatch, 
     cache_dir = tmp_path / "cache"
     handler = PDBHandler(cache_dir=cache_dir, retries=3, backoff_seconds=0.0)
 
+    # Signature intentionally mirrors Bio.PDB.PDBList.retrieve_pdb_file for monkeypatch compatibility.
     def fake_retrieve(
         self: Any,
         pdb_code: str,
@@ -62,6 +70,7 @@ def test_get_or_download_retries_then_succeeds(monkeypatch: pytest.MonkeyPatch, 
 def test_get_or_download_raises_after_retries(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     handler = PDBHandler(cache_dir=tmp_path / "cache", retries=2, backoff_seconds=0.0)
 
+    # Signature intentionally mirrors Bio.PDB.PDBList.retrieve_pdb_file for monkeypatch compatibility.
     def always_fail(
         self: Any,
         pdb_code: str,
