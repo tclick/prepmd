@@ -190,6 +190,7 @@ class StructureBuilder(SimulationPlan):
         self._created_dirs.add(backup_dir)
 
     def _write_replica_files(self, replica_dir: Path, variant: str, replica_num: str) -> None:
+        replica_dir.mkdir(parents=True, exist_ok=True)
         (replica_dir / "README.md").write_text(
             render_replica_readme(self.config, variant, replica_num, self._engine.name),
             encoding="utf-8",

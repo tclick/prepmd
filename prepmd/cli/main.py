@@ -11,14 +11,21 @@ from rich.table import Table
 
 from prepmd.cli.commands.setup import setup_project
 from prepmd.config.loader import ConfigLoader
-from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig, WaterBoxShape
+from prepmd.config.models import (
+    EngineConfig,
+    EngineName,
+    ProjectConfig,
+    ProteinConfig,
+    SimulationConfig,
+    WaterBoxConfig,
+    WaterBoxShape,
+)
 from prepmd.core.run import run_setup
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
 from prepmd.utils.logging import configure_logging
 
 LICENSE_TEXT = "GNU GPL-3.0-or-later"
-CLI_PDB_PLACEHOLDER = "__pending_cli_pdb_input__"
 SUPPORTED_ENGINES = [e.value for e in EngineName]
 SUPPORTED_BOX_SHAPES = [s.value for s in WaterBoxShape]
 console = Console()
@@ -151,12 +158,18 @@ def prepare(
         if selected_project_name is None:
             raise typer.BadParameter("Project name is required when --config is not provided.")
 
-        base_config = project_config or ProjectConfig(
-            project_name=selected_project_name,
-            protein=ProteinConfig(pdb_file=CLI_PDB_PLACEHOLDER),
-        )
-        merged_config = base_config.model_copy(deep=True)
-        merged_config.project_name = selected_project_name
+        if project_config is not None:
+            merged_config = project_config.model_copy(deep=True)
+            merged_config.project_name = selected_project_name
+        else:
+            merged_config = ProjectConfig.model_construct(
+                project_name=selected_project_name,
+                output_dir=".",
+                protein=ProteinConfig.model_construct(),
+                simulation=SimulationConfig(),
+                engine=EngineConfig(),
+                water_box=WaterBoxConfig(),
+            )
 
         if pdb_id is not None and (pdb_file is not None or apo_pdb is not None or holo_pdb is not None):
             raise PDBMutualExclusivityError("Specify either a local PDB file or a PDB ID, not both.")
@@ -210,9 +223,6 @@ def prepare(
         if holo_pdb is not None:
             merged_config.protein.pdb_files["holo"] = str(holo_pdb)
             merged_config.protein.pdb_id = None
-        if merged_config.protein.pdb_file == CLI_PDB_PLACEHOLDER:
-            merged_config.protein.pdb_file = None
-
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
         run_result = run_setup(merged_config, reporter=RichProgressReporter(console))
         root = run_result.root_dir

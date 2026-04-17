@@ -31,7 +31,7 @@ class ConfigLoader:
         try:
             config = ProjectConfig.model_validate(data)
         except PydanticValidationError as exc:
-            error_messages = "\n".join(error["msg"] for error in exc.errors())
+            error_messages = "\n".join(str(error.get("msg", error)) for error in exc.errors())
             if "PDB input method" in error_messages or "local PDB file or a PDB ID" in error_messages:
                 raise PDBMutualExclusivityError(error_messages) from exc
             raise ConfigurationError(error_messages) from exc

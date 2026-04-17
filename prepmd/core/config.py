@@ -1,6 +1,6 @@
 """Core configuration models."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(slots=True, frozen=True)
@@ -26,7 +26,5 @@ class CoreSimulationConfig:
     production_run_length_ns: int = 100
     force_field: str = "ff19sb"
     water_model: str = "OPC3"
-    minimization_restraints: tuple[float, float, float] = field(default_factory=lambda: (10.0, 5.0, 0.0))
-    equilibration_restraints: tuple[float, float, float, float, float] = field(
-        default_factory=lambda: (5.0, 2.0, 1.0, 0.1, 0.0)
-    )
+    minimization_restraints: tuple[float, float, float] = (10.0, 5.0, 0.0)
+    equilibration_restraints: tuple[float, float, float, float, float] = (5.0, 2.0, 1.0, 0.1, 0.0)

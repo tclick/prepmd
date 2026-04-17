@@ -6,11 +6,13 @@ import sys
 from collections.abc import Callable, Sequence
 from typing import cast
 
+from pydantic import ValidationError as PydanticValidationError
 from PyQt6.QtCore import QByteArray, QProcess
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget
 
 from prepmd.config.models import ProjectConfig
 from prepmd.core.run import run_setup
+from prepmd.exceptions import PrepMDError
 from prepmd.models.results import RunResult
 
 type ProgressCallback = Callable[[int, int, str], None]
@@ -57,7 +59,7 @@ class ConsoleWidget(QPlainTextEdit):
             for line in _flatten_exception_group(exc):
                 self.appendPlainText(f" - {line}")
             return
-        except Exception as exc:  # pragma: no cover - defensive UI fallback
+        except (PrepMDError, PydanticValidationError) as exc:
             self.appendPlainText(f"Error: {exc}")
             return
         self.appendPlainText(f"Project created at {result.root_dir}")
