@@ -33,6 +33,25 @@ def test_load_toml_config(tmp_path: Path) -> None:
     assert config.simulation.replicas == 3
 
 
+def test_load_config_with_truncated_octahedron_water_box(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        (
+            "project_name: demo\n"
+            "protein:\n"
+            "  pdb_file: /tmp/input.pdb\n"
+            "water_box:\n"
+            "  shape: truncated_octahedron\n"
+            "  edge_length: 10.0\n"
+        ),
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader().load_project_config(config_path)
+    assert config.water_box.shape == "truncated_octahedron"
+    assert config.water_box.edge_length == 10.0
+
+
 def test_load_config_rejects_both_pdb_id_and_pdb_file(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(

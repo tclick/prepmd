@@ -35,3 +35,15 @@ class PDBValidationError(ValidationError):
 
 class PDBMutualExclusivityError(ValidationError):
     """Raised when PDB input methods are both specified or both missing."""
+
+
+class BoxGeometryError(ValidationError):
+    """Raised for invalid water-box geometry settings."""
+
+
+class InvalidBoxDimensionsError(BoxGeometryError):
+    """Raised when one or more box dimensions are invalid."""
+
+
+class BoxShapeNotSupportedError(BoxGeometryError):
+    """Raised when an engine does not support the requested box shape."""

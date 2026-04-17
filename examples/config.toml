@@ -21,3 +21,7 @@ force_field = "ff19sb"
 water_model = "OPC3"
 
 [engine.options]
+
+[water_box]
+shape = "cubic"
+side_length = 10.0

@@ -193,6 +193,33 @@ def test_cli_prepare_with_config_and_cli_overrides(tmp_path: Path) -> None:
     assert (tmp_path / "from-config" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
 
 
+def test_cli_prepare_with_orthorhombic_box_dimensions(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep-ortho",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--box-shape",
+            "orthorhombic",
+            "--box-dimensions",
+            "12",
+            "12",
+            "15",
+            "--engine",
+            "gromacs",
+        ],
+    )
+    assert result.exit_code == 0
+    prep_file = tmp_path / "prep-ortho" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in"
+    assert "-box 12.000 12.000 15.000 -bt triclinic" in prep_file.read_text(encoding="utf-8")
+
+
 def test_cli_prepare_requires_project_name_without_config() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["prepare"])

@@ -11,6 +11,7 @@ Top-level fields
 * ``protein`` (table/object)
 * ``simulation`` (table/object)
 * ``engine`` (table/object)
+* ``water_box`` (table/object)
 
 Protein
 -------
@@ -34,5 +35,14 @@ Engine
 * ``force_field`` (string, default ``ff19sb``)
 * ``water_model`` (string, default ``OPC3``)
 * ``options`` (mapping, default empty)
+
+Water box
+---------
+
+* ``shape`` (string, one of ``cubic``, ``truncated_octahedron``, ``orthorhombic``; default ``cubic``)
+* ``side_length`` (float > 0, cubic only)
+* ``edge_length`` (float > 0, truncated octahedron only)
+* ``dimensions`` (3 floats > 0, orthorhombic only)
+* ``auto_box_padding`` (float > 0, default ``10.0``; fallback when shape dimensions are omitted)
 
 See ``examples/config.yaml`` and ``examples/config.toml`` for complete examples.

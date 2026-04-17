@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class EngineName(StrEnum):
@@ -14,6 +14,14 @@ class EngineName(StrEnum):
     NAMD = "namd"
     CHARMM = "charmm"
     OPENMM = "openmm"
+
+
+class WaterBoxShape(StrEnum):
+    """Supported water box geometries."""
+
+    CUBIC = "cubic"
+    TRUNCATED_OCTAHEDRON = "truncated_octahedron"
+    ORTHORHOMBIC = "orthorhombic"
 
 
 EnsembleType = Literal["NVT", "NPT", "NVE"]
@@ -82,6 +90,45 @@ class EngineConfig(BaseModel):
     options: dict[str, str] = Field(default_factory=dict)
 
 
+class WaterBoxConfig(BaseModel):
+    """Water-box geometry configuration."""
+
+    shape: WaterBoxShape = WaterBoxShape.CUBIC
+    side_length: float | None = None
+    edge_length: float | None = None
+    dimensions: tuple[float, float, float] | None = None
+    auto_box_padding: float = Field(default=10.0, gt=0.0)
+
+    @model_validator(mode="after")
+    def validate_shape_dimensions(self) -> "WaterBoxConfig":
+        """Validate and normalize shape-dependent dimensions."""
+        if self.shape == WaterBoxShape.CUBIC:
+            if self.edge_length is not None or self.dimensions is not None:
+                raise ValueError("Cubic box only accepts side_length.")
+            if self.side_length is None:
+                self.side_length = self.auto_box_padding
+            if self.side_length <= 0.0:
+                raise ValueError("Cubic side_length must be positive.")
+            return self
+
+        if self.shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
+            if self.side_length is not None or self.dimensions is not None:
+                raise ValueError("Truncated octahedron only accepts edge_length.")
+            if self.edge_length is None:
+                self.edge_length = self.auto_box_padding
+            if self.edge_length <= 0.0:
+                raise ValueError("Truncated octahedron edge_length must be positive.")
+            return self
+
+        if self.side_length is not None or self.edge_length is not None:
+            raise ValueError("Orthorhombic box only accepts dimensions.")
+        if self.dimensions is None:
+            self.dimensions = (self.auto_box_padding, self.auto_box_padding, self.auto_box_padding)
+        if any(value <= 0.0 for value in self.dimensions):
+            raise ValueError("Orthorhombic dimensions must all be positive.")
+        return self
+
+
 class ProjectConfig(BaseModel):
     """Top-level project configuration."""
 
@@ -90,3 +137,4 @@ class ProjectConfig(BaseModel):
     protein: ProteinConfig = Field(default_factory=ProteinConfig)
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
     engine: EngineConfig = Field(default_factory=EngineConfig)
+    water_box: WaterBoxConfig = Field(default_factory=WaterBoxConfig)
