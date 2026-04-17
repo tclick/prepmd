@@ -53,6 +53,15 @@ CONFIG_OPTION = typer.Option(
     "-c",
     help="Optional YAML/TOML config file. CLI options override config values.",
 )
+SETUP_OUTPUT_DIR_OPTION = typer.Option(None, "--output-dir", help="Override output directory from config.")
+SETUP_DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Validate and build plan only without applying changes.")
+SETUP_PLAN_OUT_OPTION = typer.Option(None, "--plan-out", help="Write deterministic setup plan JSON to file.")
+SETUP_MANIFEST_OPTION = typer.Option(
+    None,
+    "--manifest",
+    help="Manifest output path; defaults to <output_dir>/manifest.json.",
+)
+SETUP_DEBUG_BUNDLE_OPTION = typer.Option(None, "--debug-bundle", help="Write debug bundle ZIP to file.")
 
 app = typer.Typer(help="prepmd CLI")
 
@@ -116,11 +125,25 @@ def show_license() -> None:
 
 
 @app.command("setup")
-def setup(config: Path) -> None:
+def setup(
+    config: Path,
+    output_dir: Path | None = SETUP_OUTPUT_DIR_OPTION,
+    dry_run: bool = SETUP_DRY_RUN_OPTION,
+    plan_out: Path | None = SETUP_PLAN_OUT_OPTION,
+    manifest: Path | None = SETUP_MANIFEST_OPTION,
+    debug_bundle: Path | None = SETUP_DEBUG_BUNDLE_OPTION,
+) -> None:
     """Set up project structure from a configuration file."""
     configure_logging()
     try:
-        setup_project(config)
+        setup_project(
+            config,
+            output_dir=output_dir,
+            dry_run=dry_run,
+            plan_out=plan_out,
+            manifest=manifest,
+            debug_bundle=debug_bundle,
+        )
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
