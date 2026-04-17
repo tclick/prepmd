@@ -38,13 +38,13 @@ jobs:
         run: docker build -f docker/Dockerfile.gui -t prepmd-gui:ci .
 
       - name: Run lint session in container
-        run: docker run --rm prepmd:ci pixi run -e dev nox -s lint
+        run: docker run --rm --entrypoint pixi prepmd:ci run -e dev nox -s lint
 
       - name: Run type session in container
-        run: docker run --rm prepmd:ci pixi run -e dev nox -s type
+        run: docker run --rm --entrypoint pixi prepmd:ci run -e dev nox -s type
 
       - name: Run test session in container
-        run: docker run --rm prepmd:ci pixi run -e dev nox -s test
+        run: docker run --rm --entrypoint pixi prepmd:ci run -e dev nox -s test
 
       - name: Run docs session in container
-        run: docker run --rm prepmd:ci pixi run -e dev nox -s docs
+        run: docker run --rm --entrypoint pixi prepmd:ci run -e dev nox -s docs
