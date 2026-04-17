@@ -1,6 +1,10 @@
 """README templates for simulation directories."""
 
+from importlib.resources import files
+
 from prepmd.config.models import ProjectConfig
+
+REPLICA_README_TEMPLATE = files("prepmd.resources").joinpath("replica_readme.md.tmpl").read_text(encoding="utf-8")
 
 
 def render_replica_readme(config: ProjectConfig, variant: str, replica_num: str, engine_name: str) -> str:
@@ -11,13 +15,15 @@ def render_replica_readme(config: ProjectConfig, variant: str, replica_num: str,
         pdb_input = f"PDB ID: {config.protein.pdb_id}"
     if pdb_input is None:
         pdb_input = "input.pdb"
-    return (
-        f"# {config.project_name} / {variant} / replica_{replica_num}\n\n"
-        f"- Engine: **{engine_name}**\n"
-        f"- Force field: **{config.engine.force_field}**\n"
-        f"- Water model: **{config.engine.water_model}**\n"
-        f"- Input PDB: `{pdb_input}`\n"
-        f"- Target temperature: **{config.simulation.temperature:.1f} K**\n"
-        f"- Production runs: **{config.simulation.production_runs} x "
-        f"{config.simulation.production_run_length_ns} ns**\n"
+    return REPLICA_README_TEMPLATE.format(
+        project_name=config.project_name,
+        variant=variant,
+        replica_num=replica_num,
+        engine_name=engine_name,
+        force_field=config.engine.force_field,
+        water_model=config.engine.water_model,
+        pdb_input=pdb_input,
+        temperature=config.simulation.temperature,
+        production_runs=config.simulation.production_runs,
+        production_run_length_ns=config.simulation.production_run_length_ns,
     )

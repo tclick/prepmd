@@ -19,7 +19,7 @@ def lint(session: nox.Session) -> None:
 
 @nox.session(name="type")
 def type_check(session: nox.Session) -> None:
-    """Run basedpyright and typeguard checks."""
+    """Run basedpyright and boundary-focused typeguard checks."""
     session.run("pixi", "run", "-e", "type", "type", external=True)
 
 

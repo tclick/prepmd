@@ -8,7 +8,7 @@ def test_structure_builder_creates_expected_directories(tmp_path: Path) -> None:
     config = ProjectConfig(
         project_name="proj",
         output_dir=str(tmp_path),
-        protein=ProteinConfig(variants=["wt"]),
+        protein=ProteinConfig(variants=["wt"], pdb_file="/tmp/input.pdb"),
         simulation=SimulationConfig(replicas=1),
     )
 

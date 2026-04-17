@@ -8,6 +8,20 @@
 - default protocol stages for tapered minimization, NVT heating, tapered NPT equilibration, and
   multiple 100-ns production runs
 
+## Backend architecture (CLI + GUI shared)
+
+`prepmd` now uses a UI-agnostic backend in `prepmd.core.run`:
+
+- `build_plan(config) -> SimulationPlan` builds a deterministic in-memory plan (no filesystem writes)
+- `apply_plan(plan, reporter)` applies the plan to disk with progress callbacks
+- `run_setup(config, reporter)` validates then runs plan + apply
+
+Reporter callbacks power both frontends:
+
+- CLI uses Rich progress/log rendering.
+- GUI can call `ConsoleWidget.run_backend_setup(...)` for direct backend execution and progress callbacks.
+- Existing GUI subprocess mode remains available via `ConsoleWidget.run_cli(...)`.
+
 ## Quick start
 
 ```bash

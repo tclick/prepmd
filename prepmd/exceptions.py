@@ -13,6 +13,10 @@ class ValidationError(ConfigurationError):
     """Raised when configuration validation fails."""
 
 
+class ValidationErrorGroup(ExceptionGroup):
+    """Raised when configuration validation returns multiple errors."""
+
+
 class EngineError(PrepMDError):
     """Raised for engine selection and execution errors."""
 
@@ -23,6 +27,14 @@ class FileGenerationError(PrepMDError):
 
 class StructureBuildError(PrepMDError):
     """Raised when directory structure creation fails."""
+
+
+class SetupPlanError(PrepMDError):
+    """Raised when deterministic setup planning fails."""
+
+
+class SetupApplyError(PrepMDError):
+    """Raised when applying a setup plan fails."""
 
 
 class PDBDownloadError(PrepMDError):

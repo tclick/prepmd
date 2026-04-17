@@ -2,11 +2,13 @@
 
 from pathlib import Path
 
+from pydantic import ValidationError as PydanticValidationError
+
 from prepmd.config.loaders.toml_loader import TOMLConfigLoader
 from prepmd.config.loaders.yaml_loader import YAMLConfigLoader
 from prepmd.config.models import ProjectConfig
 from prepmd.config.validators.pipeline import ValidationPipeline
-from prepmd.exceptions import ConfigurationError
+from prepmd.exceptions import ConfigurationError, PDBMutualExclusivityError
 
 
 class ConfigLoader:
@@ -26,6 +28,12 @@ class ConfigLoader:
         else:
             raise ConfigurationError(f"Unsupported config format: {file_path.suffix}")
 
-        config = ProjectConfig.model_validate(data)
+        try:
+            config = ProjectConfig.model_validate(data)
+        except PydanticValidationError as exc:
+            error_messages = "\n".join(str(error.get("msg", error)) for error in exc.errors())
+            if "local PDB file or a PDB ID" in error_messages:
+                raise PDBMutualExclusivityError(error_messages) from exc
+            raise ConfigurationError(error_messages) from exc
         self._pipeline.validate(config)
         return config

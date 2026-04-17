@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 project = "prepmd"
-copyright = "2026, tclick"  # noqa: A001
+copyright = "2026, tclick"
 author = "tclick"
 release = "0.1.0"
 

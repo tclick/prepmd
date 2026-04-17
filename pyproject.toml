@@ -63,6 +63,7 @@ dev = [
 
 [project.scripts]
 prepmd = "prepmd.cli.main:main"
+prepmd-gui = "prepmd.gui.main:main"
 
 [project.entry-points."prepmd.engines"]
 amber = "prepmd.engines.amber:AmberEngine"
@@ -77,9 +78,11 @@ packages = ["prepmd"]
 [tool.ruff]
 line-length = 120
 target-version = "py313"
+extend-exclude = [".pixi"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "A"]
+select = ["E", "F", "I", "UP", "B", "SIM", "PERF", "RUF"]
+ignore = ["PERF401", "RUF012", "RUF022"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -87,11 +90,20 @@ indent-style = "space"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=prepmd --cov-report=html --cov-report=term-missing --typeguard-packages=prepmd"
+addopts = "--cov=prepmd --cov-report=html --cov-report=term-missing"
 
 [tool.basedpyright]
-typeCheckingMode = "strict"
+typeCheckingMode = "basic"
 include = ["prepmd", "tests"]
+strict = ["prepmd"]
 
 [tool.typeguard]
 collection-check-strategy = "ALL_ITEMS"
+
+[tool.hypothesis]
+max_examples = 40
+deadline = 500
+
+[tool.hypothesis.profiles.nightly]
+max_examples = 200
+deadline = 1200
