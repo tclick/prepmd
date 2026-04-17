@@ -32,7 +32,7 @@ class ConsoleWidget(QPlainTextEdit):
 
         command_arguments = ["-m", "prepmd.cli", *arguments]
         self.appendPlainText(f"$ {sys.executable} {' '.join(command_arguments)}")
-        self._process.start(sys.executable, command_arguments)
+        self._process.start(sys.executable, command_arguments)  # pyright: ignore[reportUnknownMemberType]
 
     def stop_cli(self) -> None:
         """Stop the running CLI process, if any."""

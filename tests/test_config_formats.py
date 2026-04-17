@@ -25,6 +25,7 @@ def test_yaml_and_toml_support_same_parameter_set(
         config_data = {
             "project_name": project_name,
             "output_dir": str(tmp_path),
+            "protein": {"pdb_file": "/tmp/input.pdb"},
             "simulation": {"replicas": replicas, "temperature": temperature},
             "engine": {"name": engine, "force_field": "ff19sb", "water_model": "OPC3"},
         }
@@ -36,6 +37,8 @@ def test_yaml_and_toml_support_same_parameter_set(
             (
                 f'project_name = "{project_name}"\n'
                 f'output_dir = "{tmp_path}"\n'
+                "[protein]\n"
+                'pdb_file = "/tmp/input.pdb"\n'
                 "[simulation]\n"
                 f"replicas = {replicas}\n"
                 f"temperature = {temperature}\n"

@@ -11,7 +11,7 @@
 ## Quick start
 
 ```bash
-prepmd prepare --project-name demo --output-dir .
+prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb
 ```
 
 or use a YAML/TOML config:
@@ -24,6 +24,39 @@ You can also merge config file values with CLI overrides:
 
 ```bash
 prepmd prepare --config /path/to/config.toml --engine gromacs --replicas 3
+```
+
+Download directly from the Protein Data Bank (cached locally):
+
+```bash
+prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC
+prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC --pdb-cache-dir /path/to/cache
+```
+
+`--pdb-file` and `--pdb-id` are mutually exclusive. Exactly one input method must be provided.
+Supported PDB IDs are 4 alphanumeric characters (for example `1ABC`).
+
+Default cache location is `~/.cache/prepmd/pdb`. Cached files are plain `*.pdb` files and can be cleaned manually:
+
+```bash
+rm -f ~/.cache/prepmd/pdb/*.pdb
+```
+
+YAML config (local file):
+
+```yaml
+project_name: demo
+protein:
+  pdb_file: /path/to/input.pdb
+```
+
+TOML config (download by PDB ID):
+
+```toml
+project_name = "demo"
+[protein]
+pdb_id = "1ABC"
+pdb_cache_dir = "/path/to/cache"
 ```
 
 ## Development workflow

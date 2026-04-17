@@ -23,3 +23,15 @@ class FileGenerationError(PrepMDError):
 
 class StructureBuildError(PrepMDError):
     """Raised when directory structure creation fails."""
+
+
+class PDBDownloadError(PrepMDError):
+    """Raised when downloading a PDB structure fails."""
+
+
+class PDBValidationError(ValidationError):
+    """Raised when a PDB ID is invalid."""
+
+
+class PDBMutualExclusivityError(ValidationError):
+    """Raised when PDB input methods are both specified or both missing."""

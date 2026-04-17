@@ -13,6 +13,7 @@ typer = ">=0.9.0"
 rich = ">=13.7.0"
 loguru = ">=0.7.0"
 pyyaml = ">=6.0"
+biopython = ">=1.85"
 
 [feature.dev.pypi-dependencies]
 nox = ">=2024.10.9"
