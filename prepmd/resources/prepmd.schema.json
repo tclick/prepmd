@@ -51,6 +51,11 @@
     "ProteinConfig": {
       "description": "Protein-level simulation variants.\n\nParameters\n----------\nvariants : list[str]\n    Names of protein variants to prepare (for example: ``apo`` and ``holo``).\npdb_files : dict[str, str | None]\n    Optional mapping of variant name to the variant-specific input PDB path.",
       "properties": {
+        "offline": {
+          "default": false,
+          "title": "Offline",
+          "type": "boolean"
+        },
         "pdb_cache_dir": {
           "anyOf": [
             {
