@@ -1,19 +1,24 @@
 """Amber engine plugin implementation."""
 
 from prepmd.config.models import ProjectConfig
-from prepmd.engines.base import Engine
+from prepmd.engines.base import Engine, EngineCapabilities
 
 
 class AmberEngine(Engine):
     """Amber simulation engine."""
+
+    _CAPABILITIES = EngineCapabilities(
+        supported_ensembles=frozenset({"NVT", "NPT", "NVE"}),
+        supported_box_shapes=frozenset({"cubic", "truncated_octahedron", "orthorhombic"}),
+    )
 
     @property
     def name(self) -> str:
         return "amber"
 
     @property
-    def supported_box_shapes(self) -> set[str]:
-        return {"cubic", "truncated_octahedron", "orthorhombic"}
+    def capabilities(self) -> EngineCapabilities:
+        return self._CAPABILITIES
 
     def generate_inputs(self, config: ProjectConfig) -> list[str]:
         cutoff, spacing = self.get_cutoff_spacing(config)

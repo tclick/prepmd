@@ -10,6 +10,7 @@ from prepmd.cli.commands import setup as setup_command
 from prepmd.cli.main import LICENSE_TEXT, app
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig
+from prepmd.config.validators import compatibility as compatibility_module
 from prepmd.config.validators.compatibility import CompatibilityValidator
 from prepmd.config.validators.ensemble import EnsembleValidator
 from prepmd.config.validators.pipeline import ValidationPipeline
@@ -17,6 +18,7 @@ from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
 from prepmd.config.versioning import migrate_config
 from prepmd.core import run as core_run
+from prepmd.engines.base import EngineCapabilities
 from prepmd.engines.factory import EngineFactory
 from prepmd.exceptions import ConfigurationError, EngineError, StructureBuildError, ValidationError
 from prepmd.file_generator.templates.equilibration import EquilibrationFileGenerator, render_equilibration
@@ -87,6 +89,29 @@ def test_validators(config: ProjectConfig) -> None:
     bad_ensemble = config.model_copy(update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})})
     with pytest.raises(ValidationError):
         EnsembleValidator().validate(bad_ensemble)
+
+
+def test_compatibility_validator_uses_engine_capabilities_for_ensemble(
+    config: ProjectConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeEngine:
+        capabilities = EngineCapabilities(
+            supported_ensembles=frozenset({"NVT"}),
+            supported_box_shapes=frozenset({"cubic", "truncated_octahedron", "orthorhombic"}),
+        )
+
+        def supports_box_shape(self, shape: str) -> bool:
+            return shape in self.capabilities.supported_box_shapes
+
+    fake_engine = FakeEngine()
+    monkeypatch.setattr(
+        compatibility_module.EngineFactory,
+        "create",
+        staticmethod(lambda _engine_name: fake_engine),
+    )
+    config.simulation.ensemble = "NVE"
+    with pytest.raises(ValidationError, match="ensemble NVE is not supported by amber"):
+        CompatibilityValidator().validate(config)
 
 
 def test_validation_pipeline(config: ProjectConfig) -> None:

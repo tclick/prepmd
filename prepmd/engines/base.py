@@ -1,10 +1,21 @@
 """Engine protocols and abstractions."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from prepmd.config.models import ProjectConfig
 from prepmd.core.box_geometry import BoxGeometry, build_box_geometry
 from prepmd.exceptions import BoxShapeNotSupportedError
+
+
+@dataclass(frozen=True, slots=True)
+class EngineCapabilities:
+    """Static metadata describing what an engine supports."""
+
+    supported_ensembles: frozenset[str]
+    supported_box_shapes: frozenset[str]
+    supported_water_models: frozenset[str] | None = None
+    supported_force_fields: frozenset[str] | None = None
 
 
 class Engine(ABC):
@@ -17,8 +28,13 @@ class Engine(ABC):
 
     @property
     @abstractmethod
+    def capabilities(self) -> EngineCapabilities:
+        """Static capability metadata for this engine."""
+
+    @property
     def supported_box_shapes(self) -> set[str]:
         """Set of native water-box shapes supported by this engine."""
+        return set(self.capabilities.supported_box_shapes)
 
     @abstractmethod
     def generate_inputs(self, config: ProjectConfig) -> list[str]:

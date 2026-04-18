@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from prepmd.config.models import ProjectConfig, ProteinConfig
+from prepmd.engines.base import EngineCapabilities
 from prepmd.engines.factory import EngineFactory, _build_engine_registry
 from prepmd.engines.plugins.amber.engine import AmberEngine as PluginAmberEngine
 from prepmd.engines.plugins.charmm.engine import CharmmEngine as PluginCharmmEngine
@@ -55,3 +56,22 @@ def test_entry_points_config_targets_plugin_modules() -> None:
 def test_engine_registry_keeps_builtin_engine_names() -> None:
     registry = _build_engine_registry()
     assert set(registry) >= set(ENGINE_CLASSES)
+
+
+@pytest.mark.parametrize(
+    ("engine_name", "ensembles", "box_shapes"),
+    [
+        ("amber", {"NVT", "NPT", "NVE"}, {"cubic", "truncated_octahedron", "orthorhombic"}),
+        ("gromacs", {"NVT", "NPT", "NVE"}, {"cubic", "truncated_octahedron", "orthorhombic"}),
+        ("namd", {"NVT", "NPT"}, {"cubic", "orthorhombic"}),
+        ("charmm", {"NVT", "NPT"}, {"cubic", "orthorhombic"}),
+        ("openmm", {"NVT", "NPT", "NVE"}, {"cubic", "truncated_octahedron", "orthorhombic"}),
+    ],
+)
+def test_builtin_engine_capabilities_are_exposed(engine_name: str, ensembles: set[str], box_shapes: set[str]) -> None:
+    engine = EngineFactory.create(engine_name)
+    capabilities = engine.capabilities
+    assert isinstance(capabilities, EngineCapabilities)
+    assert set(capabilities.supported_ensembles) == ensembles
+    assert set(capabilities.supported_box_shapes) == box_shapes
+    assert engine.supported_box_shapes == box_shapes
