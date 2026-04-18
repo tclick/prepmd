@@ -304,7 +304,7 @@ def prepare(
             )
 
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
-        with tempfile.TemporaryDirectory(prefix="prepmd-prepare-") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="prepmd-config-") as temp_dir:
             temp_config_path = Path(temp_dir) / "prepare.config.yaml"
             temp_config_path.write_text(
                 yaml.safe_dump(merged_config.model_dump(mode="json"), sort_keys=True),

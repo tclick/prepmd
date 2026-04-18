@@ -3,6 +3,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from prepmd.caching import memoize
@@ -548,10 +549,12 @@ def test_cli_offline_mode_validates_pdb_cache_availability(cli_command: str, tmp
     runner = CliRunner()
     cache_dir = tmp_path / "cache"
     config_path = tmp_path / "cfg.yaml"
-    config_path.write_text(
-        f"project_name: offline-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_id: 1abc\n  pdb_cache_dir: {cache_dir}\n",
-        encoding="utf-8",
-    )
+    config_payload = {
+        "project_name": "offline-demo",
+        "output_dir": str(tmp_path),
+        "protein": {"pdb_id": "1abc", "pdb_cache_dir": str(cache_dir)},
+    }
+    config_path.write_text(yaml.safe_dump(config_payload, sort_keys=True), encoding="utf-8")
     if cli_command == "setup":
         command_args = [cli_command, str(config_path), "--offline"]
     else:
