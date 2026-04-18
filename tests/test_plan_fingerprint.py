@@ -1,6 +1,6 @@
 from prepmd.config.models import ProjectConfig, ProteinConfig
 from prepmd.core.plan_fingerprint import compute_plan_sha256
-from prepmd.core.run import build_plan
+from prepmd.core.run import PlannedFile, SimulationPlan, build_plan
 
 
 def test_plan_sha256_is_deterministic_across_runs() -> None:
@@ -25,18 +25,18 @@ def test_plan_sha256_normalizes_newlines() -> None:
     )
     base_plan = build_plan(cfg)
     first_file = base_plan.files[0]
-    crlf_plan = base_plan.__class__(
+    crlf_plan = SimulationPlan(
         config=base_plan.config,
         root_dir=base_plan.root_dir,
         directories=base_plan.directories,
-        files=(first_file.__class__(path=first_file.path, content="a\r\nb\r\n"),),
+        files=(PlannedFile(path=first_file.path, content="a\r\nb\r\n"),),
         prepare_files=(),
     )
-    lf_plan = base_plan.__class__(
+    lf_plan = SimulationPlan(
         config=base_plan.config,
         root_dir=base_plan.root_dir,
         directories=base_plan.directories,
-        files=(first_file.__class__(path=first_file.path, content="a\nb\n"),),
+        files=(PlannedFile(path=first_file.path, content="a\nb\n"),),
         prepare_files=(),
     )
 

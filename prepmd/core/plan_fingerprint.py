@@ -54,6 +54,8 @@ def _relative(path: Path, root_dir: Path) -> str:
     try:
         normalized = path.relative_to(root_dir)
     except ValueError:
+        # Fall back for defensive use with paths outside root_dir; this keeps
+        # hashing stable instead of failing unexpectedly.
         normalized = path
     return normalized.as_posix()
 
