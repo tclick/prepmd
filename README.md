@@ -28,11 +28,21 @@ Reporter callbacks power both frontends:
 prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb
 ```
 
+Preview only (no project writes):
+
+```bash
+prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --dry-run
+```
+
 or use a YAML/TOML config:
 
 ```bash
 prepmd setup /path/to/config.yaml
 ```
+
+Both `prepare` and `setup` write `manifest.json` into the generated project root on apply runs.
+The manifest includes environment metadata, config hash, input fingerprinting, and generated-file checksums.
+Use `--debug-bundle /path/to/debug.zip` to collect config, plan preview, manifest, logs, and environment details.
 
 You can also merge config file values with CLI overrides:
 

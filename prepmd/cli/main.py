@@ -10,6 +10,14 @@ from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextC
 from rich.table import Table
 
 from prepmd.cli.commands.setup import setup_project
+from prepmd.cli.run_artifacts import (
+    build_manifest,
+    plan_preview,
+    read_generated_files,
+    stable_json,
+    write_debug_bundle,
+    write_manifest,
+)
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import (
     EngineConfig,
@@ -20,7 +28,7 @@ from prepmd.config.models import (
     WaterBoxConfig,
     WaterBoxShape,
 )
-from prepmd.core.run import run_setup
+from prepmd.core.run import PlannedFile, SimulationPlan, apply_plan, build_plan, render_prepare_files
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
 from prepmd.utils.logging import configure_logging
@@ -53,6 +61,12 @@ CONFIG_OPTION = typer.Option(
     "-c",
     help="Optional YAML/TOML config file. CLI options override config values.",
 )
+DRY_RUN_OPTION = typer.Option(
+    False,
+    "--dry-run",
+    help="Validate and build a plan preview without writing project files.",
+)
+DEBUG_BUNDLE_OPTION = typer.Option(None, "--debug-bundle", help="Write a debug zip bundle at the provided path.")
 
 app = typer.Typer(help="prepmd CLI")
 
@@ -70,21 +84,25 @@ class RichProgressReporter:
             transient=True,
         )
         self._task_id: TaskID | None = None
+        self.logs: list[str] = []
 
     def on_start(self, total_steps: int) -> None:
         self._progress.start()
         self._task_id = self._progress.add_task("Preparing project", total=max(total_steps, 1))
 
     def on_step(self, current_step: int, total_steps: int, message: str) -> None:
+        self.logs.append(f"STEP {current_step}/{total_steps}: {message}")
         if self._task_id is None:
             self.on_start(total_steps)
         if self._task_id is not None:
             self._progress.update(self._task_id, completed=current_step, description=message)
 
     def on_log(self, message: str) -> None:
+        self.logs.append(f"LOG: {message}")
         self._console.print(message)
 
     def on_error(self, error: BaseException) -> None:
+        self.logs.append(f"ERROR: {error}")
         self._console.print(f"[bold red]Error:[/bold red] {error}")
         self._progress.stop()
 
@@ -116,11 +134,15 @@ def show_license() -> None:
 
 
 @app.command("setup")
-def setup(config: Path) -> None:
+def setup(
+    config: Path,
+    dry_run: bool = DRY_RUN_OPTION,
+    debug_bundle: Path | None = DEBUG_BUNDLE_OPTION,
+) -> None:
     """Set up project structure from a configuration file."""
     configure_logging()
     try:
-        setup_project(config)
+        setup_project(config, dry_run=dry_run, debug_bundle=debug_bundle)
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -147,6 +169,8 @@ def prepare(
     apo_pdb: Path | None = APO_PDB_OPTION,
     holo_pdb: Path | None = HOLO_PDB_OPTION,
     config: Path | None = CONFIG_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    debug_bundle: Path | None = DEBUG_BUNDLE_OPTION,
 ) -> None:
     """Prepare apo/holo simulation scaffolding from CLI arguments."""
 
@@ -235,8 +259,40 @@ def prepare(
             )
 
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
-        run_result = run_setup(merged_config, reporter=RichProgressReporter(console))
-        root = run_result.root_dir
+        plan = build_plan(merged_config)
+        run_result = None
+        logs: list[str] = []
+        root = plan.root_dir
+        if dry_run:
+            generated_files = _collect_generated_files(plan, dry_run=True)
+            logs.append("Dry-run mode enabled; skipped apply step.")
+            console.print("[bold yellow]Dry-run:[/bold yellow] no project files were written.")
+        else:
+            reporter = RichProgressReporter(console)
+            setup_result = apply_plan(plan, reporter=reporter)
+            run_result = setup_result.result
+            logs.extend(reporter.logs)
+            generated_files = _collect_generated_files(plan, dry_run=False)
+
+        manifest = build_manifest(merged_config, plan, generated_files, dry_run=dry_run)
+        preview = plan_preview(plan, generated_files)
+        if dry_run:
+            console.print_json(stable_json(manifest))
+        else:
+            manifest_path = root / "manifest.json"
+            write_manifest(manifest_path, manifest)
+            logs.append(f"Wrote manifest: {manifest_path}")
+
+        if debug_bundle is not None:
+            write_debug_bundle(
+                debug_bundle,
+                config=merged_config,
+                manifest=manifest,
+                plan_text=preview,
+                logs=logs,
+                run_result=run_result,
+            )
+            console.print(f"[green]Debug bundle written:[/green] {debug_bundle}")
     except ExceptionGroup as exc:
         _render_exception_group(exc, "Validation errors")
         raise typer.Exit(code=1) from exc
@@ -266,3 +322,10 @@ def prepare(
 def main() -> None:
     """Run CLI app."""
     app()
+
+
+def _collect_generated_files(plan: SimulationPlan, *, dry_run: bool) -> tuple[PlannedFile, ...]:
+    if dry_run:
+        predicted_prepare = render_prepare_files(plan, download_remote_pdb=False)
+        return tuple(sorted((*plan.files, *predicted_prepare), key=lambda item: str(item.path)))
+    return read_generated_files(plan)
