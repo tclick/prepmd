@@ -17,7 +17,9 @@ from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
 from prepmd.config.versioning import migrate_config
 from prepmd.core import run as core_run
+from prepmd.engines.base import EngineCapabilities
 from prepmd.engines.factory import EngineFactory
+from prepmd.engines.plugins.amber.engine import AmberEngine as PluginAmberEngine
 from prepmd.exceptions import ConfigurationError, EngineError, StructureBuildError, ValidationError
 from prepmd.file_generator.templates.equilibration import EquilibrationFileGenerator, render_equilibration
 from prepmd.file_generator.templates.heating import HeatingFileGenerator, render_heating
@@ -87,6 +89,22 @@ def test_validators(config: ProjectConfig) -> None:
     bad_ensemble = config.model_copy(update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})})
     with pytest.raises(ValidationError):
         EnsembleValidator().validate(bad_ensemble)
+
+
+def test_compatibility_validator_uses_engine_capabilities_for_ensemble(
+    config: ProjectConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        PluginAmberEngine,
+        "_CAPABILITIES",
+        EngineCapabilities(
+            supported_ensembles=frozenset({"NVT"}),
+            supported_box_shapes=frozenset({"cubic", "truncated_octahedron", "orthorhombic"}),
+        ),
+    )
+    config.simulation.ensemble = "NVE"
+    with pytest.raises(ValidationError, match="ensemble NVE is not supported by amber"):
+        CompatibilityValidator().validate(config)
 
 
 def test_validation_pipeline(config: ProjectConfig) -> None:
