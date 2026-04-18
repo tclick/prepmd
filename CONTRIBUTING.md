@@ -7,7 +7,7 @@
 ## Golden integration tests
 
 Golden snapshots for deterministic `prepmd setup` integration tests are stored under
-`/home/runner/work/prepmd/prepmd/tests/golden/`.
+`tests/golden/`.
 
 - Run golden tests: `python -m pytest -q tests/test_golden_setup.py`
 - Intentionally update snapshots: `UPDATE_GOLDEN=1 python -m pytest -q tests/test_golden_setup.py`
