@@ -202,6 +202,8 @@ def test_cli_setup_apply_writes_manifest_and_outputs(tmp_path: Path) -> None:
     assert manifest_path.exists()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["manifest_version"] == 1
+    assert isinstance(manifest["plan_sha256"], str)
+    assert len(manifest["plan_sha256"]) == 64
     assert manifest["outputs"]["output_dir"] == str(tmp_path.resolve())
     assert manifest["outputs"]["files"]
 
@@ -238,6 +240,8 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     assert bundle_path.exists()
     with ZipFile(bundle_path) as archive:
         names = set(archive.namelist())
+        env = json.loads(archive.read("env.json").decode("utf-8"))
+        manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
     assert "config.input.toml" in names
     assert "config.resolved.yaml" in names
     assert "plan.json" in names
@@ -245,6 +249,8 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     assert "env.json" in names
     assert "logs.txt" in names
     assert "command.txt" in names
+    assert isinstance(env["plan_sha256"], str)
+    assert env["plan_sha256"] == manifest["plan_sha256"]
 
 
 def test_cli_setup_plan_out_is_deterministic(tmp_path: Path) -> None:
@@ -294,6 +300,7 @@ def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pyt
     assert first.exit_code != 0
     assert state_path.exists()
     first_state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert isinstance(first_state["config_fingerprints"]["plan_sha256"], str)
     done_steps = {step_id: step for step_id, step in first_state["steps"].items() if step["status"] == "done"}
     assert done_steps
     assert any(step["status"] == "failed" for step in first_state["steps"].values())
