@@ -240,7 +240,7 @@ def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pyt
     original_write_prepare_action = core_run._write_prepare_action
     interrupted = {"raised": False}
 
-    def flaky_write_prepare_action(path: Path, contents: str):
+    def make_interruptible_write_action(path: Path, contents: str):
         wrapped = original_write_prepare_action(path, contents)
 
         def run_once() -> None:
@@ -251,7 +251,7 @@ def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pyt
 
         return run_once
 
-    monkeypatch.setattr(core_run, "_write_prepare_action", flaky_write_prepare_action)
+    monkeypatch.setattr(core_run, "_write_prepare_action", make_interruptible_write_action)
     first = runner.invoke(app, ["setup", str(config_path)])
     assert first.exit_code != 0
     assert state_path.exists()

@@ -23,6 +23,7 @@ from prepmd.config.loader import ConfigLoader
 from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.core.reporting import NullReporter, Reporter
 from prepmd.core.run import SetupStateStore, SimulationPlan, apply_plan, build_plan
+from prepmd.exceptions import SetupApplyError
 from prepmd.models.results import RunResult
 
 console = Console()
@@ -87,6 +88,11 @@ def setup_project(
         logger.info(f"Dry-run complete for {root}")
     else:
         if overwrite and plan.root_dir.exists():
+            expected_root = resolved_output_dir / config.project_name
+            if plan.root_dir != expected_root:
+                raise SetupApplyError(
+                    f"Refusing to overwrite unexpected project root: {plan.root_dir} (expected {expected_root})"
+                )
             shutil.rmtree(plan.root_dir)
         state_store = SetupStateStore.create(
             plan.root_dir,

@@ -130,7 +130,7 @@ class SetupStateStore:
         for step_id in step_ids:
             existing = existing_steps.get(step_id, {})
             status_raw = existing.get("status")
-            status = str(status_raw) if status_raw in STEP_STATUS_VALUES else "pending"
+            status = status_raw if isinstance(status_raw, str) and status_raw in STEP_STATUS_VALUES else "pending"
             item: dict[str, object] = {
                 "status": status,
                 "started_at_utc": existing.get("started_at_utc"),
@@ -178,7 +178,8 @@ class SetupStateStore:
         try:
             text = json.dumps(self._payload, indent=2, sort_keys=True)
             self._state_path.write_text(f"{text}\n", encoding="utf-8")
-        except Exception:
+        except Exception as exc:
+            logger.warning(f"Failed to persist setup state to {self._state_path}: {exc}")
             return
 
     def _steps(self) -> dict[str, dict[str, object]]:
@@ -468,7 +469,9 @@ def _load_state_payload(path: Path) -> dict[str, object] | None:
 def _validate_resume_payload(payload: dict[str, object], *, config_sha256: str, plan_sha256: str) -> None:
     version = payload.get("state_version")
     if version != STATE_VERSION:
-        raise SetupApplyError(f"Unsupported setup state version {version}; use --overwrite to reset state.")
+        raise SetupApplyError(
+            f"Unsupported setup state version {version} (expected {STATE_VERSION}); use --overwrite to reset state."
+        )
     run_id = payload.get("run_id")
     created_at = payload.get("created_at_utc")
     fingerprints = payload.get("config_fingerprints")
