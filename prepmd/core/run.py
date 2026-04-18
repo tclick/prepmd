@@ -422,7 +422,8 @@ def _resolve_shared_pdb_file(config: ProjectConfig, *, offline: bool = False) ->
         cached = handler.cache_path(protein.pdb_id)
         if not cached.exists():
             raise SetupApplyError(
-                f"Offline mode is enabled and cached PDB '{protein.pdb_id.upper()}' was not found at {cached}."
+                f"Offline mode is enabled and cached PDB '{protein.pdb_id.upper()}' was not found at {cached}. "
+                "Download the PDB file first or run without --offline."
             )
         return str(cached)
     downloaded = handler.get_or_download(protein.pdb_id)
