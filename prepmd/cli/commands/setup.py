@@ -160,6 +160,7 @@ def setup_project(
             config_sha256=_sha256_bytes(raw_config_text.encode("utf-8")),
             plan_sha256=plan_sha256,
             resume=resume and not overwrite,
+            offline=config.protein.offline,
         )
         result = apply_plan(
             plan,
@@ -187,8 +188,6 @@ def setup_project(
     if debug_bundle is not None:
         resolved_config_yaml = yaml.safe_dump(config.model_dump(mode="json"), sort_keys=True)
         env_json = _json_text(_environment_payload(plan_sha256=plan_sha256))
-        log_name, logs_content = reporter.render(log_format=log_format)
-        pdb_cache_payload["status"] = _cache_status(cache_hit_before_apply=cache_hit_before_apply)
         _write_debug_bundle(
             debug_bundle=debug_bundle,
             input_extension=input_extension,
@@ -347,16 +346,6 @@ def _pdb_input_payload(
 
 
 def _environment_payload(*, plan_sha256: str) -> dict[str, object]:
-    env: dict[str, str] = {}
-    secret_env_names: list[str] = []
-    for key, value in sorted(os.environ.items()):
-        key_upper = key.upper()
-        if key_upper in SECRET_ENV_KEY_NAMES or key_upper.endswith(SECRET_ENV_SUFFIXES):
-            secret_env_names.append(key)
-            env[key] = "[REDACTED]"
-            continue
-        if key in ENV_SNAPSHOT_KEYS:
-            env[key] = value
     return {
         "plan_sha256": plan_sha256,
         "prepmd_version": __version__,
