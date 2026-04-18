@@ -1,19 +1,24 @@
 """CHARMM engine plugin implementation."""
 
 from prepmd.config.models import ProjectConfig
-from prepmd.engines.base import Engine
+from prepmd.engines.base import Engine, EngineCapabilities
 
 
 class CharmmEngine(Engine):
     """CHARMM simulation engine."""
+
+    _CAPABILITIES = EngineCapabilities(
+        supported_ensembles=frozenset({"NVT", "NPT"}),
+        supported_box_shapes=frozenset({"cubic", "orthorhombic"}),
+    )
 
     @property
     def name(self) -> str:
         return "charmm"
 
     @property
-    def supported_box_shapes(self) -> set[str]:
-        return {"cubic", "orthorhombic"}
+    def capabilities(self) -> EngineCapabilities:
+        return self._CAPABILITIES
 
     def generate_inputs(self, config: ProjectConfig) -> list[str]:
         cutoff, spacing = self.get_cutoff_spacing(config)

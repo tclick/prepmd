@@ -43,6 +43,7 @@ class ProteinConfig(BaseModel):
     pdb_file: str | None = None
     pdb_id: str | None = None
     pdb_cache_dir: str | None = None
+    offline: bool = False
 
     @model_validator(mode="after")
     def validate_pdb_inputs(self) -> "ProteinConfig":

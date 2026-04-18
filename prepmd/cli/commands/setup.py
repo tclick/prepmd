@@ -25,6 +25,7 @@ from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import ProjectConfig
 from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.config.versioning import LATEST_CONFIG_VERSION
+from prepmd.core.plan_fingerprint import compute_plan_sha256
 from prepmd.core.reporting import NullReporter, Reporter
 from prepmd.core.run import SetupStateStore, SimulationPlan, apply_plan, build_plan
 from prepmd.exceptions import SetupApplyError
@@ -114,6 +115,7 @@ def setup_project(
     *,
     output_dir: Path | None = None,
     dry_run: bool = False,
+    offline: bool | None = None,
     plan_out: Path | None = None,
     manifest: Path | None = None,
     debug_bundle: Path | None = None,
@@ -123,15 +125,17 @@ def setup_project(
 ) -> None:
     """Load config and scaffold project directories."""
     config = ConfigLoader().load_project_config(config_path)
+    if offline is not None:
+        config.protein.offline = offline
     raw_config, raw_config_text, input_extension = _load_raw_config(config_path)
     resolved_output_dir, output_source = _resolve_output_dir(raw_config, config.output_dir, output_dir)
     config.output_dir = str(resolved_output_dir)
     ValidationPipeline().validate(config)
 
     plan = build_plan(config)
+    plan_sha256 = compute_plan_sha256(plan)
     plan_payload = _build_plan_payload(plan)
     plan_json = _json_text(plan_payload)
-    plan_sha256 = _sha256_bytes(plan_json.encode("utf-8"))
     pdb_cache_payload, cache_path = _pdb_cache_payload(config)
     cache_hit_before_apply = cache_path.exists() if cache_path is not None else None
     if plan_out is not None:
@@ -157,7 +161,13 @@ def setup_project(
             plan_sha256=plan_sha256,
             resume=resume and not overwrite,
         )
-        result = apply_plan(plan, reporter=reporter, state_store=state_store, resume=resume and not overwrite)
+        result = apply_plan(
+            plan,
+            reporter=reporter,
+            state_store=state_store,
+            resume=resume and not overwrite,
+            offline=config.protein.offline,
+        )
         root = result.root_dir
         state_json = (root / ".prepmd_state.json").read_text(encoding="utf-8")
         generated_files = _planned_output_files(plan)
@@ -167,6 +177,7 @@ def setup_project(
             raw_config_text=raw_config_text,
             generated_files=generated_files,
             output_source=output_source,
+            plan_sha256=plan_sha256,
         )
         manifest_path = manifest if manifest is not None else resolved_output_dir / "manifest.json"
         _write_text(manifest_path, _json_text(manifest_payload))
@@ -175,7 +186,7 @@ def setup_project(
 
     if debug_bundle is not None:
         resolved_config_yaml = yaml.safe_dump(config.model_dump(mode="json"), sort_keys=True)
-        env_json = _json_text(_environment_payload())
+        env_json = _json_text(_environment_payload(plan_sha256=plan_sha256))
         log_name, logs_content = reporter.render(log_format=log_format)
         pdb_cache_payload["status"] = _cache_status(cache_hit_before_apply=cache_hit_before_apply)
         _write_debug_bundle(
@@ -262,6 +273,7 @@ def _build_manifest(
     raw_config_text: str,
     generated_files: tuple[Path, ...],
     output_source: str,
+    plan_sha256: str,
 ) -> dict[str, object]:
     output_dir = Path(plan.config.output_dir).expanduser().resolve()
     files = [
@@ -276,6 +288,7 @@ def _build_manifest(
     return {
         "manifest_version": 1,
         "created_at_utc": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "plan_sha256": plan_sha256,
         "prepmd": {"version": __version__},
         "python": {"version": platform.python_version()},
         "platform": {
@@ -333,7 +346,7 @@ def _pdb_input_payload(
     return {"source": "file", "variants": variants}
 
 
-def _environment_payload() -> dict[str, object]:
+def _environment_payload(*, plan_sha256: str) -> dict[str, object]:
     env: dict[str, str] = {}
     secret_env_names: list[str] = []
     for key, value in sorted(os.environ.items()):
@@ -345,6 +358,7 @@ def _environment_payload() -> dict[str, object]:
         if key in ENV_SNAPSHOT_KEYS:
             env[key] = value
     return {
+        "plan_sha256": plan_sha256,
         "prepmd_version": __version__,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
