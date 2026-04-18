@@ -133,8 +133,7 @@ def _hash_file(path: Path) -> str:
 def _input_fingerprint(config: ProjectConfig) -> dict[str, object]:
     protein = config.protein
     variant_hashes = {
-        variant: _safe_hash(Path(path)) if path else None
-        for variant, path in sorted(protein.pdb_files.items())
+        variant: _safe_hash(Path(path)) if path else None for variant, path in sorted(protein.pdb_files.items())
     }
     return {
         "pdb_id": protein.pdb_id.upper() if protein.pdb_id else None,
