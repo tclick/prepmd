@@ -47,6 +47,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = [
+    "sphinx>=8.3.0",
+    "sphinx-rtd-theme>=3.0.2",
+]
+gui = [
+    "PyQt6>=6.7.1",
+]
 dev = [
     "nox>=2024.10.9",
     "pre-commit>=4.0.1",
@@ -56,8 +63,6 @@ dev = [
     "ruff>=0.11.0",
     "basedpyright>=1.22.1",
     "typeguard>=4.4.2",
-    "sphinx>=8.3.0",
-    "sphinx-rtd-theme>=3.0.2",
     "types-pyyaml>=6.0.12.20240311",
 ]
 
