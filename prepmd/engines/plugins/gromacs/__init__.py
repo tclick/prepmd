@@ -1,4 +1,4 @@
-"""Backward-compatible Gromacs engine import shim."""
+"""Gromacs engine plugin."""
 
 from prepmd.engines.plugins.gromacs.engine import GromacsEngine
 

@@ -1,4 +1,4 @@
-"""Backward-compatible Amber engine import shim."""
+"""Amber engine plugin."""
 
 from prepmd.engines.plugins.amber.engine import AmberEngine
 
