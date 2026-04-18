@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from prepmd.cli.main import app
 
 UPDATE_GOLDEN_ENV = "UPDATE_GOLDEN"
+IGNORED_DYNAMIC_FILES = {".prepmd_state.json"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +70,8 @@ def _collect_snapshot(project_root: Path) -> GoldenSnapshot:
     text_files: dict[str, str] = {}
     for path in sorted(project_root.rglob("*"), key=lambda value: value.as_posix()):
         relative = path.relative_to(project_root).as_posix()
+        if relative in IGNORED_DYNAMIC_FILES:
+            continue
         if path.is_dir():
             tree_entries.append(f"{relative}/")
             continue

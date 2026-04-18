@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import shutil
 import sys
 import tomllib
 from datetime import UTC, datetime
@@ -21,7 +22,8 @@ from prepmd import __version__
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.core.reporting import NullReporter, Reporter
-from prepmd.core.run import SimulationPlan, apply_plan, build_plan
+from prepmd.core.run import SetupStateStore, SimulationPlan, apply_plan, build_plan
+from prepmd.exceptions import SetupApplyError
 from prepmd.models.results import RunResult
 
 console = Console()
@@ -63,6 +65,8 @@ def setup_project(
     plan_out: Path | None = None,
     manifest: Path | None = None,
     debug_bundle: Path | None = None,
+    resume: bool = False,
+    overwrite: bool = False,
 ) -> None:
     """Load config and scaffold project directories."""
     config = ConfigLoader().load_project_config(config_path)
@@ -83,7 +87,20 @@ def setup_project(
         root = plan.root_dir
         logger.info(f"Dry-run complete for {root}")
     else:
-        result = apply_plan(plan, reporter=reporter)
+        if overwrite and plan.root_dir.exists():
+            expected_root = resolved_output_dir / config.project_name
+            if plan.root_dir != expected_root:
+                raise SetupApplyError(
+                    f"Refusing to overwrite unexpected project root: {plan.root_dir} (expected {expected_root})"
+                )
+            shutil.rmtree(plan.root_dir)
+        state_store = SetupStateStore.create(
+            plan.root_dir,
+            config_sha256=_sha256_bytes(raw_config_text.encode("utf-8")),
+            plan_sha256=_sha256_bytes(plan_json.encode("utf-8")),
+            resume=resume and not overwrite,
+        )
+        result = apply_plan(plan, reporter=reporter, state_store=state_store, resume=resume and not overwrite)
         root = result.root_dir
         generated_files = _planned_output_files(plan)
         manifest_payload = _build_manifest(

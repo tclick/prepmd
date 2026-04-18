@@ -1,7 +1,7 @@
 """Command line entrypoint."""
 
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 import typer
 from pydantic import ValidationError as PydanticValidationError
@@ -63,6 +63,9 @@ SETUP_MANIFEST_OPTION = typer.Option(
     help="Manifest output path; defaults to <output_dir>/manifest.json.",
 )
 SETUP_DEBUG_BUNDLE_OPTION = typer.Option(None, "--debug-bundle", help="Write debug bundle ZIP to file.")
+SETUP_RESUME_OPTION = typer.Option(False, "--resume", help="Resume from .prepmd_state.json when available.")
+SETUP_OVERWRITE_OPTION = typer.Option(False, "--overwrite", help="Reset outputs and state before apply.")
+SETUP_LOG_FORMAT_OPTION = typer.Option("text", "--log-format", help="Logging format: text or json.")
 INIT_FORMAT_OPTION = typer.Option(InitFormat.YAML, "--format", help="Config output format: yaml or toml.")
 INIT_OUTPUT_OPTION = typer.Option(None, "--output", help="Output config file path.")
 INIT_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite output file if it already exists.")
@@ -136,9 +139,12 @@ def setup(
     plan_out: Path | None = SETUP_PLAN_OUT_OPTION,
     manifest: Path | None = SETUP_MANIFEST_OPTION,
     debug_bundle: Path | None = SETUP_DEBUG_BUNDLE_OPTION,
+    resume: bool = SETUP_RESUME_OPTION,
+    overwrite: bool = SETUP_OVERWRITE_OPTION,
+    log_format: Literal["text", "json"] = SETUP_LOG_FORMAT_OPTION,
 ) -> None:
     """Set up project structure from a configuration file."""
-    configure_logging()
+    configure_logging(log_format=log_format)
     try:
         setup_project(
             config,
@@ -147,6 +153,8 @@ def setup(
             plan_out=plan_out,
             manifest=manifest,
             debug_bundle=debug_bundle,
+            resume=resume,
+            overwrite=overwrite,
         )
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
