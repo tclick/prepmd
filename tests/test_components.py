@@ -3,6 +3,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from prepmd.caching import memoize
@@ -168,6 +169,26 @@ def test_cli_setup_dry_run_makes_no_output_writes(tmp_path: Path) -> None:
     assert not (tmp_path / "manifest.json").exists()
 
 
+def test_cli_prepare_dry_run_makes_no_output_writes(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "dry-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert not (tmp_path / "dry-prepare-demo").exists()
+    assert not (tmp_path / "manifest.json").exists()
+
+
 @pytest.mark.parametrize(
     ("format_name", "filename"),
     [("yaml", "prepmd.yaml"), ("toml", "prepmd.toml")],
@@ -271,6 +292,36 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     assert env["plan_sha256"] == manifest["plan_sha256"]
 
 
+def test_cli_prepare_debug_bundle_contains_expected_members(tmp_path: Path) -> None:
+    runner = CliRunner()
+    bundle_path = tmp_path / "debug.zip"
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "bundle-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--debug-bundle",
+            str(bundle_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert bundle_path.exists()
+    with ZipFile(bundle_path) as archive:
+        names = set(archive.namelist())
+    assert "config.input.yaml" in names
+    assert "config.resolved.yaml" in names
+    assert "plan.json" in names
+    assert "manifest.json" in names
+    assert "env.json" in names
+    assert "logs.txt" in names
+    assert "command.txt" in names
+
+
 def test_cli_setup_plan_out_is_deterministic(tmp_path: Path) -> None:
     runner = CliRunner()
     config_path = tmp_path / "cfg.yaml"
@@ -335,6 +386,69 @@ def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pyt
         assert resumed_state["steps"][step_id]["finished_at_utc"] == step["finished_at_utc"]
 
 
+def test_cli_prepare_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    project_root = tmp_path / "resume-prepare-demo"
+    state_path = project_root / ".prepmd_state.json"
+
+    original_write_prepare_action_fn = core_run._write_prepare_action
+    interrupted = {"raised": False}
+
+    def make_interruptible_write_action(path: Path, contents: str):
+        wrapped = original_write_prepare_action_fn(path, contents)
+
+        def run_once() -> None:
+            if not interrupted["raised"]:
+                interrupted["raised"] = True
+                raise RuntimeError("simulated interruption")
+            wrapped()
+
+        return run_once
+
+    monkeypatch.setattr(core_run, "_write_prepare_action", make_interruptible_write_action)
+    first = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "resume-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+        ],
+    )
+    assert first.exit_code != 0
+    assert state_path.exists()
+    first_state = json.loads(state_path.read_text(encoding="utf-8"))
+    done_steps = {step_id: step for step_id, step in first_state["steps"].items() if step["status"] == "done"}
+    assert done_steps
+    assert any(step["status"] == "failed" for step in first_state["steps"].values())
+
+    monkeypatch.setattr(core_run, "_write_prepare_action", original_write_prepare_action_fn)
+    resumed = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "resume-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--resume",
+        ],
+    )
+    assert resumed.exit_code == 0
+    resumed_state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert all(step["status"] == "done" for step in resumed_state["steps"].values())
+    for step_id, step in done_steps.items():
+        assert step["started_at_utc"] is not None
+        assert step["finished_at_utc"] is not None
+        assert resumed_state["steps"][step_id]["started_at_utc"] == step["started_at_utc"]
+        assert resumed_state["steps"][step_id]["finished_at_utc"] == step["finished_at_utc"]
+
+
 def test_cli_setup_overwrite_resets_state_and_regenerates(tmp_path: Path) -> None:
     runner = CliRunner()
     config_path = tmp_path / "cfg.yaml"
@@ -352,6 +466,47 @@ def test_cli_setup_overwrite_resets_state_and_regenerates(tmp_path: Path) -> Non
     readme_path.write_text("user-modified", encoding="utf-8")
 
     second = runner.invoke(app, ["setup", str(config_path), "--overwrite"])
+    assert second.exit_code == 0
+    second_state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert second_state["run_id"] != first_state["run_id"]
+    assert readme_path.read_text(encoding="utf-8") != "user-modified"
+
+
+def test_cli_prepare_overwrite_resets_state_and_regenerates(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    first = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "overwrite-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+        ],
+    )
+    assert first.exit_code == 0
+    project_root = tmp_path / "overwrite-prepare-demo"
+    state_path = project_root / ".prepmd_state.json"
+    first_state = json.loads(state_path.read_text(encoding="utf-8"))
+    readme_path = project_root / "05_simulations" / "apo" / "replica_001" / "README.md"
+    readme_path.write_text("user-modified", encoding="utf-8")
+
+    second = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "overwrite-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--overwrite",
+        ],
+    )
     assert second.exit_code == 0
     second_state = json.loads(state_path.read_text(encoding="utf-8"))
     assert second_state["run_id"] != first_state["run_id"]
@@ -380,6 +535,75 @@ def test_cli_setup_json_logging_outputs_json_lines_with_step_transitions(
     statuses = {entry["record"]["extra"]["status"] for entry in transitions}
     assert "running" in statuses
     assert "done" in statuses
+
+
+def test_cli_prepare_json_logging_outputs_json_lines_with_step_transitions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    monkeypatch.setattr(setup_command.console, "print", lambda *args, **kwargs: None)
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "json-log-prepare-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--log-format",
+            "json",
+        ],
+    )
+    assert result.exit_code == 0
+    parsed_lines = [json.loads(line) for line in result.output.splitlines() if line.strip()]
+    assert parsed_lines
+    transitions = [
+        entry for entry in parsed_lines if entry.get("record", {}).get("extra", {}).get("event") == "step_transition"
+    ]
+    assert transitions
+    statuses = {entry["record"]["extra"]["status"] for entry in transitions}
+    assert "running" in statuses
+    assert "done" in statuses
+
+
+@pytest.mark.parametrize("subcommand", ["setup", "prepare"])
+def test_cli_offline_mode_validates_pdb_cache_availability(subcommand: str, tmp_path: Path) -> None:
+    runner = CliRunner()
+    cache_dir = tmp_path / "cache"
+    config_path = tmp_path / "cfg.yaml"
+    config_payload = {
+        "project_name": "offline-demo",
+        "output_dir": str(tmp_path),
+        "protein": {"pdb_id": "1abc", "pdb_cache_dir": str(cache_dir)},
+    }
+    config_path.write_text(yaml.safe_dump(config_payload, sort_keys=True), encoding="utf-8")
+    if subcommand == "setup":
+        command_args = [subcommand, str(config_path), "--offline"]
+    else:
+        command_args = [
+            subcommand,
+            "--project-name",
+            "offline-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-id",
+            "1abc",
+            "--pdb-cache-dir",
+            str(cache_dir),
+            "--offline",
+        ]
+    missing_cache = runner.invoke(app, command_args)
+    assert missing_cache.exit_code != 0
+    assert "Offline mode is enabled" in missing_cache.output
+    assert "Pre-populate this cache file" in missing_cache.output
+
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "1ABC.pdb").write_text("HEADER OFFLINE CACHE\n", encoding="utf-8")
+    with_cache = runner.invoke(app, command_args)
+    assert with_cache.exit_code == 0
 
 
 def test_cli_prepare(tmp_path: Path) -> None:

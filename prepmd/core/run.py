@@ -266,11 +266,12 @@ def apply_plan(
     *,
     state_store: SetupStateStore | None = None,
     resume: bool = False,
+    offline: bool = False,
 ) -> SetupResult:
     """Apply a deterministic setup plan to the filesystem."""
     active_reporter = reporter or NullReporter()
     step_results: list[StepResult] = []
-    operations = _plan_operations(plan)
+    operations = _plan_operations(plan, offline=offline)
     current = 0
     total = len(operations)
 
@@ -343,7 +344,7 @@ def run_setup(config: ProjectConfig, reporter: Reporter | None = None) -> SetupR
     return apply_plan(plan, reporter=reporter)
 
 
-def _plan_operations(plan: SimulationPlan) -> tuple[PlannedOperation, ...]:
+def _plan_operations(plan: SimulationPlan, *, offline: bool = False) -> tuple[PlannedOperation, ...]:
     operations: list[PlannedOperation] = []
     for directory in plan.directories:
         operations.append(
@@ -361,7 +362,7 @@ def _plan_operations(plan: SimulationPlan) -> tuple[PlannedOperation, ...]:
                 action=_write_file_action(planned_file),
             )
         )
-    for prepare_file in render_prepare_files(plan):
+    for prepare_file in render_prepare_files(plan, offline=offline):
         operations.append(
             PlannedOperation(
                 step_id=f"prepare::{prepare_file.path}",
@@ -372,12 +373,17 @@ def _plan_operations(plan: SimulationPlan) -> tuple[PlannedOperation, ...]:
     return tuple(operations)
 
 
-def render_prepare_files(plan: SimulationPlan, *, download_remote_pdb: bool = True) -> tuple[PlannedFile, ...]:
+def render_prepare_files(
+    plan: SimulationPlan, *, download_remote_pdb: bool = True, offline: bool = False
+) -> tuple[PlannedFile, ...]:
     """Render deterministic prepare-file contents for a plan."""
     engine = EngineFactory.create(plan.config.engine.name)
-    shared_pdb_file = (
-        _resolve_shared_pdb_file(plan.config) if download_remote_pdb else _resolve_plan_pdb_reference(plan.config)
-    )
+    if offline:
+        shared_pdb_file = _resolve_shared_pdb_file(plan.config, offline=True)
+    elif download_remote_pdb:
+        shared_pdb_file = _resolve_shared_pdb_file(plan.config)
+    else:
+        shared_pdb_file = _resolve_plan_pdb_reference(plan.config)
     rendered: list[PlannedFile] = []
     for prepare_file in plan.prepare_files:
         pdb_file = plan.config.protein.pdb_files.get(prepare_file.variant) or shared_pdb_file
@@ -405,14 +411,14 @@ def _plan_protocol_directories(
             files.append(PlannedFile(stage_dir / "README.md", _render_subdirectory_readme(stage.notes)))
 
 
-def _resolve_shared_pdb_file(config: ProjectConfig) -> str | None:
+def _resolve_shared_pdb_file(config: ProjectConfig, *, offline: bool = False) -> str | None:
     protein = config.protein
     if protein.pdb_file is not None:
         return protein.pdb_file
     if protein.pdb_id is None:
         return None
     cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
-    downloaded = PDBHandler(cache_dir=cache_dir, offline=protein.offline).get_or_download(protein.pdb_id)
+    downloaded = PDBHandler(cache_dir=cache_dir, offline=offline or protein.offline).get_or_download(protein.pdb_id)
     return str(downloaded)
 
 

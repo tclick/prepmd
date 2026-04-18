@@ -105,7 +105,13 @@ def setup_project(
             plan_sha256=plan_sha256,
             resume=resume and not overwrite,
         )
-        result = apply_plan(plan, reporter=reporter, state_store=state_store, resume=resume and not overwrite)
+        result = apply_plan(
+            plan,
+            reporter=reporter,
+            state_store=state_store,
+            resume=resume and not overwrite,
+            offline=config.protein.offline,
+        )
         root = result.root_dir
         generated_files = _planned_output_files(plan)
         manifest_payload = _build_manifest(
