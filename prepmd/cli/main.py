@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextColumn
 from rich.table import Table
 
+from prepmd.cli.commands.init import InitFormat, default_output_path, render_template, validate_template
 from prepmd.cli.commands.setup import setup_project
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import (
@@ -62,6 +63,9 @@ SETUP_MANIFEST_OPTION = typer.Option(
     help="Manifest output path; defaults to <output_dir>/manifest.json.",
 )
 SETUP_DEBUG_BUNDLE_OPTION = typer.Option(None, "--debug-bundle", help="Write debug bundle ZIP to file.")
+INIT_FORMAT_OPTION = typer.Option(InitFormat.YAML, "--format", help="Config output format: yaml or toml.")
+INIT_OUTPUT_OPTION = typer.Option(None, "--output", help="Output config file path.")
+INIT_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite output file if it already exists.")
 
 app = typer.Typer(help="prepmd CLI")
 
@@ -147,6 +151,27 @@ def setup(
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
+
+
+@app.command("init")
+def init(
+    format: InitFormat = INIT_FORMAT_OPTION,
+    output: Path | None = INIT_OUTPUT_OPTION,
+    force: bool = INIT_FORCE_OPTION,
+) -> None:
+    """Generate a starter prepmd configuration file."""
+    output_path = output if output is not None else default_output_path(format)
+    if output_path.exists() and not force:
+        console.print(
+            f"[bold red]Error:[/bold red] Output file already exists: {output_path}. Use --force to overwrite."
+        )
+        raise typer.Exit(code=1)
+
+    template = render_template(format)
+    validate_template(template, format)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(template, encoding="utf-8")
+    console.print(f"[bold green]Wrote[/bold green] {output_path}")
 
 
 @app.command("prepare")

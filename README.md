@@ -37,6 +37,7 @@ prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb 
 or use a YAML/TOML config:
 
 ```bash
+prepmd init --format yaml
 prepmd setup /path/to/config.yaml
 ```
 
