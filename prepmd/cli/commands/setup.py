@@ -31,18 +31,35 @@ from prepmd.exceptions import SetupApplyError
 from prepmd.models.results import RunResult
 
 console = Console()
-SECRET_ENV_KEY_HINTS = (
-    "TOKEN",
-    "SECRET",
-    "PASSWORD",
-    "PASS",
+SECRET_ENV_KEY_NAMES = (
+    "GITHUB_TOKEN",
+    "API_TOKEN",
+    "AUTH_TOKEN",
+    "BEARER_TOKEN",
+    "SECRET_KEY",
     "API_KEY",
     "ACCESS_KEY",
     "PRIVATE_KEY",
-    "AUTH",
-    "CREDENTIAL",
-    "SESSION",
+    "SESSION_KEY",
+    "SESSION_TOKEN",
     "COOKIE",
+    "PASSWORD",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AZURE_CLIENT_SECRET",
+    "DATABASE_URL",
+    "DB_PASSWORD",
+    "GCP_SERVICE_ACCOUNT_KEY",
+)
+SECRET_ENV_SUFFIXES = (
+    "_TOKEN",
+    "_SECRET",
+    "_PASSWORD",
+    "_PASS",
+    "_API_KEY",
+    "_ACCESS_KEY",
+    "_PRIVATE_KEY",
+    "_CREDENTIALS",
 )
 ENV_SNAPSHOT_KEYS = (
     "HOME",
@@ -87,7 +104,7 @@ class CapturingReporter:
 
     def render(self, *, log_format: Literal["text", "json"]) -> tuple[str, str]:
         if log_format == "json":
-            payload = [{"event": message.split(" ", 1)[0], "message": message} for message in self.messages]
+            payload = [{"event": _log_event_name(message), "message": message} for message in self.messages]
             return "logs.jsonl", "\n".join(json.dumps(item, sort_keys=True) for item in payload)
         return "logs.txt", "\n".join(self.messages)
 
@@ -321,7 +338,7 @@ def _environment_payload() -> dict[str, object]:
     secret_env_names: list[str] = []
     for key, value in sorted(os.environ.items()):
         key_upper = key.upper()
-        if any(hint in key_upper for hint in SECRET_ENV_KEY_HINTS):
+        if key_upper in SECRET_ENV_KEY_NAMES or key_upper.endswith(SECRET_ENV_SUFFIXES):
             secret_env_names.append(key)
             env[key] = "[REDACTED]"
             continue
@@ -430,10 +447,23 @@ def _cache_status(*, cache_hit_before_apply: bool | None) -> str:
 
 def _redact_text(text: str) -> str:
     redacted = text
-    home_path = str(Path.home())
-    if home_path:
-        redacted = redacted.replace(home_path, "$HOME")
+    for alias in _home_path_aliases():
+        redacted = redacted.replace(alias, "$HOME")
     return redacted
+
+
+def _home_path_aliases() -> tuple[str, ...]:
+    home = Path.home()
+    aliases = {
+        str(home),
+        home.as_posix(),
+        os.path.normpath(str(home)),
+    }
+    return tuple(sorted(aliases, key=len, reverse=True))
+
+
+def _log_event_name(message: str) -> str:
+    return message.lstrip().partition(" ")[0] or "log"
 
 
 def _relative_path(path: Path, base: Path) -> str:

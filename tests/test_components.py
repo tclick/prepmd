@@ -281,6 +281,13 @@ def test_cli_setup_debug_bundle_redacts_home_and_secret_env_and_respects_json_lo
         assert "API_TOKEN" in env_json
 
 
+def test_setup_log_event_name_normalizes_message_shapes() -> None:
+    assert setup_command._log_event_name("") == "log"
+    assert setup_command._log_event_name("   ") == "log"
+    assert setup_command._log_event_name("step 1/2 write file") == "step"
+    assert setup_command._log_event_name("finish") == "finish"
+
+
 def test_cli_setup_plan_out_is_deterministic(tmp_path: Path) -> None:
     runner = CliRunner()
     config_path = tmp_path / "cfg.yaml"
