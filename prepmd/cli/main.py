@@ -1,13 +1,14 @@
 """Command line entrypoint."""
 
+import tempfile
 from pathlib import Path
 from typing import Literal, cast
 
 import typer
+import yaml
 from pydantic import ValidationError as PydanticValidationError
 from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextColumn
-from rich.table import Table
 
 from prepmd.cli.commands.init import InitFormat, default_output_path, render_template, validate_template
 from prepmd.cli.commands.setup import setup_project
@@ -21,7 +22,6 @@ from prepmd.config.models import (
     WaterBoxConfig,
     WaterBoxShape,
 )
-from prepmd.core.run import run_setup
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
 from prepmd.utils.logging import configure_logging
@@ -65,6 +65,7 @@ SETUP_MANIFEST_OPTION = typer.Option(
 SETUP_DEBUG_BUNDLE_OPTION = typer.Option(None, "--debug-bundle", help="Write debug bundle ZIP to file.")
 SETUP_RESUME_OPTION = typer.Option(False, "--resume", help="Resume from .prepmd_state.json when available.")
 SETUP_OVERWRITE_OPTION = typer.Option(False, "--overwrite", help="Reset outputs and state before apply.")
+SETUP_OFFLINE_OPTION = typer.Option(False, "--offline", help="Use cached PDB ID files only; never download.")
 SETUP_LOG_FORMAT_OPTION = typer.Option("text", "--log-format", help="Logging format: text or json.")
 INIT_FORMAT_OPTION = typer.Option(InitFormat.YAML, "--format", help="Config output format: yaml or toml.")
 INIT_OUTPUT_OPTION = typer.Option(None, "--output", help="Output config file path.")
@@ -141,6 +142,7 @@ def setup(
     debug_bundle: Path | None = SETUP_DEBUG_BUNDLE_OPTION,
     resume: bool = SETUP_RESUME_OPTION,
     overwrite: bool = SETUP_OVERWRITE_OPTION,
+    offline: bool = SETUP_OFFLINE_OPTION,
     log_format: Literal["text", "json"] = SETUP_LOG_FORMAT_OPTION,
 ) -> None:
     """Set up project structure from a configuration file."""
@@ -155,6 +157,7 @@ def setup(
             debug_bundle=debug_bundle,
             resume=resume,
             overwrite=overwrite,
+            offline=offline,
         )
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
@@ -203,10 +206,18 @@ def prepare(
     apo_pdb: Path | None = APO_PDB_OPTION,
     holo_pdb: Path | None = HOLO_PDB_OPTION,
     config: Path | None = CONFIG_OPTION,
+    dry_run: bool = SETUP_DRY_RUN_OPTION,
+    plan_out: Path | None = SETUP_PLAN_OUT_OPTION,
+    manifest: Path | None = SETUP_MANIFEST_OPTION,
+    debug_bundle: Path | None = SETUP_DEBUG_BUNDLE_OPTION,
+    resume: bool = SETUP_RESUME_OPTION,
+    overwrite: bool = SETUP_OVERWRITE_OPTION,
+    offline: bool = SETUP_OFFLINE_OPTION,
+    log_format: Literal["text", "json"] = SETUP_LOG_FORMAT_OPTION,
 ) -> None:
-    """Prepare apo/holo simulation scaffolding from CLI arguments."""
+    """Set up project structure from CLI arguments and optional configuration."""
 
-    configure_logging()
+    configure_logging(log_format=log_format)
 
     try:
         project_config = ConfigLoader().load_project_config(config) if config is not None else None
@@ -273,6 +284,8 @@ def prepare(
             merged_config.protein.pdb_files = {}
         if pdb_cache_dir is not None:
             merged_config.protein.pdb_cache_dir = str(pdb_cache_dir)
+        if offline:
+            merged_config.protein.offline = True
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
             merged_config.protein.pdb_id = None
@@ -291,8 +304,23 @@ def prepare(
             )
 
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
-        run_result = run_setup(merged_config, reporter=RichProgressReporter(console))
-        root = run_result.root_dir
+        with tempfile.TemporaryDirectory(prefix="prepmd-prepare-") as temp_dir:
+            temp_config_path = Path(temp_dir) / "prepare.config.yaml"
+            temp_config_path.write_text(
+                yaml.safe_dump(merged_config.model_dump(mode="json"), sort_keys=True),
+                encoding="utf-8",
+            )
+            setup_project(
+                temp_config_path,
+                output_dir=output_dir,
+                dry_run=dry_run,
+                plan_out=plan_out,
+                manifest=manifest,
+                debug_bundle=debug_bundle,
+                resume=resume,
+                overwrite=overwrite,
+                offline=offline,
+            )
     except ExceptionGroup as exc:
         _render_exception_group(exc, "Validation errors")
         raise typer.Exit(code=1) from exc
@@ -305,18 +333,6 @@ def prepare(
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
-
-    summary = Table(title="prepmd prepare summary")
-    summary.add_column("Setting")
-    summary.add_column("Value")
-    summary.add_row("Project", merged_config.project_name)
-    summary.add_row("Engine", merged_config.engine.name)
-    summary.add_row("Force field", merged_config.engine.force_field)
-    summary.add_row("Water model", merged_config.engine.water_model)
-    summary.add_row("Water box shape", merged_config.water_box.shape)
-    summary.add_row("Replicas/variant", str(merged_config.simulation.replicas))
-    summary.add_row("Output", str(root))
-    console.print(summary)
 
 
 def main() -> None:

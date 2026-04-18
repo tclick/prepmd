@@ -67,9 +67,12 @@ def setup_project(
     debug_bundle: Path | None = None,
     resume: bool = False,
     overwrite: bool = False,
+    offline: bool = False,
 ) -> None:
     """Load config and scaffold project directories."""
     config = ConfigLoader().load_project_config(config_path)
+    if offline:
+        config.protein.offline = True
     raw_config, raw_config_text, input_extension = _load_raw_config(config_path)
     resolved_output_dir, output_source = _resolve_output_dir(raw_config, config.output_dir, output_dir)
     config.output_dir = str(resolved_output_dir)
@@ -100,7 +103,13 @@ def setup_project(
             plan_sha256=_sha256_bytes(plan_json.encode("utf-8")),
             resume=resume and not overwrite,
         )
-        result = apply_plan(plan, reporter=reporter, state_store=state_store, resume=resume and not overwrite)
+        result = apply_plan(
+            plan,
+            reporter=reporter,
+            state_store=state_store,
+            resume=resume and not overwrite,
+            offline=config.protein.offline,
+        )
         root = result.root_dir
         generated_files = _planned_output_files(plan)
         manifest_payload = _build_manifest(
