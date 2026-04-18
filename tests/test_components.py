@@ -574,7 +574,7 @@ def test_cli_offline_mode_validates_pdb_cache_availability(subcommand: str, tmp_
     assert missing_cache.exit_code != 0
     assert "Offline mode is enabled and cached PDB" in missing_cache.output
 
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True)
     (cache_dir / "1ABC.pdb").write_text("HEADER OFFLINE CACHE\n", encoding="utf-8")
     with_cache = runner.invoke(app, command_args)
     assert with_cache.exit_code == 0
