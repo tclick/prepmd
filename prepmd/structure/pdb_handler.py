@@ -32,11 +32,13 @@ class PDBHandler:
         retries: int = 3,
         backoff_seconds: float = 1.0,
         max_backoff_seconds: float = 30.0,
+        offline: bool = False,
     ) -> None:
         self.cache_dir = cache_dir or Path.home() / ".cache" / "prepmd" / "pdb"
         self.retries = retries
         self.backoff_seconds = backoff_seconds
         self.max_backoff_seconds = max_backoff_seconds
+        self.offline = offline
 
     def cache_path(self, pdb_id: str) -> Path:
         """Return cache file path for a PDB ID."""
@@ -50,6 +52,13 @@ class PDBHandler:
         if cached.exists():
             logger.info(f"Using cached PDB file for {normalized}: {cached}")
             return cached
+
+        if self.offline:
+            raise PDBDownloadError(
+                "Offline mode is enabled and the requested PDB is not in cache: "
+                f"{normalized} at {cached}. Pre-populate this cache file or choose a cache directory via "
+                "--pdb-cache-dir / protein.pdb_cache_dir."
+            )
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         last_error: Exception | None = None

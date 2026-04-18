@@ -46,6 +46,11 @@ AUTO_BOX_PADDING_OPTION = typer.Option(None, min=0.1, help="Automatic box paddin
 PDB_FILE_OPTION = typer.Option(None, help="Input PDB file path.")
 PDB_ID_OPTION = typer.Option(None, help="RCSB PDB ID to download (4 alphanumeric chars).")
 PDB_CACHE_DIR_OPTION = typer.Option(None, help="Cache directory for downloaded PDB files.")
+OFFLINE_OPTION = typer.Option(
+    None,
+    "--offline/--online",
+    help="Use cached PDB files only and disable network fetching.",
+)
 APO_PDB_OPTION = typer.Option(None, help="Apo input PDB file.")
 HOLO_PDB_OPTION = typer.Option(None, help="Holo input PDB file.")
 CONFIG_OPTION = typer.Option(
@@ -136,6 +141,7 @@ def setup(
     config: Path,
     output_dir: Path | None = SETUP_OUTPUT_DIR_OPTION,
     dry_run: bool = SETUP_DRY_RUN_OPTION,
+    offline: bool | None = OFFLINE_OPTION,
     plan_out: Path | None = SETUP_PLAN_OUT_OPTION,
     manifest: Path | None = SETUP_MANIFEST_OPTION,
     debug_bundle: Path | None = SETUP_DEBUG_BUNDLE_OPTION,
@@ -150,6 +156,7 @@ def setup(
             config,
             output_dir=output_dir,
             dry_run=dry_run,
+            offline=offline,
             plan_out=plan_out,
             manifest=manifest,
             debug_bundle=debug_bundle,
@@ -200,6 +207,7 @@ def prepare(
     pdb_file: Path | None = PDB_FILE_OPTION,
     pdb_id: str | None = PDB_ID_OPTION,
     pdb_cache_dir: Path | None = PDB_CACHE_DIR_OPTION,
+    offline: bool | None = OFFLINE_OPTION,
     apo_pdb: Path | None = APO_PDB_OPTION,
     holo_pdb: Path | None = HOLO_PDB_OPTION,
     config: Path | None = CONFIG_OPTION,
@@ -273,6 +281,8 @@ def prepare(
             merged_config.protein.pdb_files = {}
         if pdb_cache_dir is not None:
             merged_config.protein.pdb_cache_dir = str(pdb_cache_dir)
+        if offline is not None:
+            merged_config.protein.offline = offline
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
             merged_config.protein.pdb_id = None

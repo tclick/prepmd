@@ -87,6 +87,30 @@ def test_get_or_download_raises_after_retries(monkeypatch: pytest.MonkeyPatch, t
         handler.get_or_download("1abc")
 
 
+def test_get_or_download_offline_uses_cached_file_without_network(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    cached = cache_dir / "1ABC.pdb"
+    cached.write_text("cached", encoding="utf-8")
+    handler = PDBHandler(cache_dir=cache_dir, offline=True)
+
+    def should_not_download(*args: object, **kwargs: object) -> str:
+        raise AssertionError("network should not be used in offline mode")
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", should_not_download)
+
+    assert handler.get_or_download("1abc") == cached
+
+
+def test_get_or_download_offline_raises_on_cache_miss(tmp_path: Path) -> None:
+    handler = PDBHandler(cache_dir=tmp_path / "cache", offline=True)
+
+    with pytest.raises(PDBDownloadError, match="Offline mode is enabled"):
+        handler.get_or_download("1abc")
+
+
 def test_cleanup_cache(tmp_path: Path) -> None:
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()

@@ -64,6 +64,7 @@ Download directly from the Protein Data Bank (cached locally):
 ```bash
 prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC
 prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC --pdb-cache-dir /path/to/cache
+prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC --offline --pdb-cache-dir /path/to/cache
 ```
 
 `--pdb-file` and `--pdb-id` are mutually exclusive. Exactly one input method must be provided.
@@ -74,6 +75,9 @@ Default cache location is `~/.cache/prepmd/pdb`. Cached files are plain `*.pdb` 
 ```bash
 rm -f ~/.cache/prepmd/pdb/*.pdb
 ```
+
+Use `--offline` (or config `protein.offline: true`) to force cache-only behavior for `pdb_id` inputs. If the PDB is not
+already cached, prepmd exits with an actionable error and does not make network requests.
 
 YAML config (local file):
 
@@ -90,6 +94,7 @@ project_name = "demo"
 [protein]
 pdb_id = "1ABC"
 pdb_cache_dir = "/path/to/cache"
+offline = true
 
 [water_box]
 shape = "truncated_octahedron"

@@ -416,6 +416,66 @@ def test_cli_prepare_with_config_and_cli_overrides(tmp_path: Path) -> None:
     assert (tmp_path / "from-config" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
 
 
+def test_cli_prepare_offline_uses_cached_pdb_without_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    (cache_dir / "1ABC.pdb").write_text("cached", encoding="utf-8")
+
+    def should_not_download(*args: object, **kwargs: object) -> str:
+        raise AssertionError("network should not be used in offline mode")
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", should_not_download)
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep-offline",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-id",
+            "1abc",
+            "--pdb-cache-dir",
+            str(cache_dir),
+            "--offline",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (tmp_path / "prep-offline" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").exists()
+
+
+def test_cli_setup_offline_fails_fast_on_cache_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    cache_dir = tmp_path / "cache"
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        (
+            "project_name: setup-offline\n"
+            f"output_dir: {tmp_path}\n"
+            "protein:\n"
+            "  pdb_id: 1abc\n"
+            f"  pdb_cache_dir: {cache_dir}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def should_not_download(*args: object, **kwargs: object) -> str:
+        raise AssertionError("network should not be used in offline mode")
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", should_not_download)
+
+    result = runner.invoke(app, ["setup", str(config_path), "--offline"])
+
+    assert result.exit_code != 0
+    assert "Offline mode is enabled" in result.output
+    assert "Pre-populate this cache file" in result.output
+    assert "--pdb-cache-dir" in result.output
+    assert "protein.pdb_cache_dir" in result.output
+
+
 def test_cli_prepare_with_orthorhombic_box_dimensions(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(

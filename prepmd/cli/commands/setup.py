@@ -62,6 +62,7 @@ def setup_project(
     *,
     output_dir: Path | None = None,
     dry_run: bool = False,
+    offline: bool | None = None,
     plan_out: Path | None = None,
     manifest: Path | None = None,
     debug_bundle: Path | None = None,
@@ -70,6 +71,8 @@ def setup_project(
 ) -> None:
     """Load config and scaffold project directories."""
     config = ConfigLoader().load_project_config(config_path)
+    if offline is not None:
+        config.protein.offline = offline
     raw_config, raw_config_text, input_extension = _load_raw_config(config_path)
     resolved_output_dir, output_source = _resolve_output_dir(raw_config, config.output_dir, output_dir)
     config.output_dir = str(resolved_output_dir)
