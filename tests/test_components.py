@@ -190,12 +190,7 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     bundle_path = tmp_path / "debug.zip"
     config_path = tmp_path / "cfg.toml"
     config_path.write_text(
-        (
-            'project_name = "bundle-demo"\n'
-            f'output_dir = "{output_dir}"\n'
-            "[protein]\n"
-            'pdb_file = "/tmp/input.pdb"\n'
-        ),
+        (f'project_name = "bundle-demo"\noutput_dir = "{output_dir}"\n[protein]\npdb_file = "/tmp/input.pdb"\n'),
         encoding="utf-8",
     )
     result = runner.invoke(app, ["setup", str(config_path), "--debug-bundle", str(bundle_path)])
