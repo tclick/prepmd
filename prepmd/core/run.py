@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import cached_property
 from pathlib import Path
+from typing import cast
+from uuid import uuid4
+
+from loguru import logger
 
 from prepmd.config.models import ProjectConfig
 from prepmd.config.validators.pipeline import ValidationPipeline
@@ -26,6 +32,9 @@ TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("04_analysis_templates", ("trajectory_processing", "all_atom", "fluctuation_analysis", "summary")),
 )
 ANALYSIS_DIRS: tuple[str, ...] = ("trajectory", "all_atom", "fluctuation")
+STATE_VERSION = 1
+STATE_FILENAME = ".prepmd_state.json"
+STEP_STATUS_VALUES = {"pending", "running", "done", "failed"}
 
 
 @dataclass(slots=True, frozen=True)
@@ -66,6 +75,125 @@ class SetupResult:
 
     root_dir: Path
     result: RunResult
+
+
+@dataclass(slots=True, frozen=True)
+class PlannedOperation:
+    """Single plan operation ready to execute during apply."""
+
+    step_id: str
+    message: str
+    action: Callable[[], None]
+
+
+class SetupStateStore:
+    """Best-effort persisted state for resumable setup apply."""
+
+    def __init__(self, state_path: Path, payload: dict[str, object]) -> None:
+        self._state_path = state_path
+        self._payload = payload
+
+    @classmethod
+    def create(
+        cls,
+        root_dir: Path,
+        *,
+        config_sha256: str,
+        plan_sha256: str,
+        resume: bool = False,
+    ) -> SetupStateStore:
+        root_dir.mkdir(parents=True, exist_ok=True)
+        state_path = root_dir / STATE_FILENAME
+        existing_payload = _load_state_payload(state_path)
+        payload: dict[str, object]
+        if resume and existing_payload is not None:
+            _validate_resume_payload(existing_payload, config_sha256=config_sha256, plan_sha256=plan_sha256)
+            payload = existing_payload
+        else:
+            payload = {
+                "state_version": STATE_VERSION,
+                "run_id": uuid4().hex,
+                "created_at_utc": _utc_now_rfc3339(),
+                "config_fingerprints": {
+                    "config_sha256": config_sha256,
+                    "plan_sha256": plan_sha256,
+                },
+                "steps": {},
+            }
+        state = cls(state_path=state_path, payload=payload)
+        state.save_best_effort()
+        return state
+
+    def prepare_steps(self, step_ids: tuple[str, ...]) -> None:
+        existing_steps = self._steps()
+        normalized: dict[str, dict[str, object]] = {}
+        for step_id in step_ids:
+            existing = existing_steps.get(step_id, {})
+            status_raw = existing.get("status")
+            status = str(status_raw) if status_raw in STEP_STATUS_VALUES else "pending"
+            item: dict[str, object] = {
+                "status": status,
+                "started_at_utc": existing.get("started_at_utc"),
+                "finished_at_utc": existing.get("finished_at_utc"),
+            }
+            if "details" in existing:
+                item["details"] = existing["details"]
+            normalized[step_id] = item
+        self._payload["steps"] = normalized
+        self.save_best_effort()
+
+    def is_done(self, step_id: str) -> bool:
+        return self._steps().get(step_id, {}).get("status") == "done"
+
+    def mark_running(self, step_id: str) -> None:
+        now = _utc_now_rfc3339()
+        step = self._steps().setdefault(step_id, {})
+        step["status"] = "running"
+        step["started_at_utc"] = now
+        step["finished_at_utc"] = None
+        step.pop("details", None)
+        self.save_best_effort()
+
+    def mark_done(self, step_id: str) -> None:
+        now = _utc_now_rfc3339()
+        step = self._steps().setdefault(step_id, {})
+        step["status"] = "done"
+        if step.get("started_at_utc") is None:
+            step["started_at_utc"] = now
+        step["finished_at_utc"] = now
+        step.pop("details", None)
+        self.save_best_effort()
+
+    def mark_failed(self, step_id: str, error: BaseException) -> None:
+        now = _utc_now_rfc3339()
+        step = self._steps().setdefault(step_id, {})
+        step["status"] = "failed"
+        if step.get("started_at_utc") is None:
+            step["started_at_utc"] = now
+        step["finished_at_utc"] = now
+        step["details"] = {"error": str(error)}
+        self.save_best_effort()
+
+    def save_best_effort(self) -> None:
+        try:
+            text = json.dumps(self._payload, indent=2, sort_keys=True)
+            self._state_path.write_text(f"{text}\n", encoding="utf-8")
+        except Exception:
+            return
+
+    def _steps(self) -> dict[str, dict[str, object]]:
+        raw_steps_obj = self._payload.setdefault("steps", {})
+        if not isinstance(raw_steps_obj, dict):
+            raw_steps_obj = {}
+            self._payload["steps"] = raw_steps_obj
+        raw_steps = cast(dict[object, object], raw_steps_obj)
+        typed_steps: dict[str, dict[str, object]] = {}
+        for raw_key, raw_value in raw_steps.items():
+            if isinstance(raw_key, str) and isinstance(raw_value, dict):
+                typed_steps[raw_key] = cast(dict[str, object], raw_value)
+        if typed_steps is not raw_steps_obj:
+            self._payload["steps"] = typed_steps
+        return typed_steps
 
 
 def build_plan(config: ProjectConfig) -> SimulationPlan:
@@ -132,32 +260,72 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
         raise SetupPlanError(f"Failed to build setup plan: {exc}") from exc
 
 
-def apply_plan(plan: SimulationPlan, reporter: Reporter | None = None) -> SetupResult:
+def apply_plan(
+    plan: SimulationPlan,
+    reporter: Reporter | None = None,
+    *,
+    state_store: SetupStateStore | None = None,
+    resume: bool = False,
+) -> SetupResult:
     """Apply a deterministic setup plan to the filesystem."""
     active_reporter = reporter or NullReporter()
     step_results: list[StepResult] = []
+    operations = _plan_operations(plan)
     current = 0
-    total = plan.total_steps
+    total = len(operations)
 
-    def advance(message: str, fn: Callable[[], None]) -> None:
+    def advance(operation: PlannedOperation) -> None:
         nonlocal current
         current += 1
-        active_reporter.on_step(current, total, message)
+        active_reporter.on_step(current, total, operation.message)
+        if resume and state_store is not None and state_store.is_done(operation.step_id):
+            logger.bind(event="step_transition", step_id=operation.step_id, status="done", skipped=True).info(
+                operation.message
+            )
+            step_results.append(
+                StepResult(
+                    name=operation.message,
+                    success=True,
+                    message="skipped(done)",
+                    metadata={"step_id": operation.step_id, "status": "done", "skipped": "true"},
+                )
+            )
+            return
+        if state_store is not None:
+            state_store.mark_running(operation.step_id)
+        logger.bind(event="step_transition", step_id=operation.step_id, status="running").info(operation.message)
         try:
-            fn()
-            step_results.append(StepResult(name=message, success=True))
+            operation.action()
+            if state_store is not None:
+                state_store.mark_done(operation.step_id)
+            logger.bind(event="step_transition", step_id=operation.step_id, status="done").info(operation.message)
+            step_results.append(
+                StepResult(
+                    name=operation.message,
+                    success=True,
+                    metadata={"step_id": operation.step_id, "status": "done"},
+                )
+            )
         except Exception as exc:
-            step_results.append(StepResult(name=message, success=False, message=str(exc)))
-            raise SetupApplyError(f"{message}: {exc}") from exc
+            if state_store is not None:
+                state_store.mark_failed(operation.step_id, exc)
+            logger.bind(event="step_transition", step_id=operation.step_id, status="failed").error(operation.message)
+            step_results.append(
+                StepResult(
+                    name=operation.message,
+                    success=False,
+                    message=str(exc),
+                    metadata={"step_id": operation.step_id, "status": "failed"},
+                )
+            )
+            raise SetupApplyError(f"{operation.message}: {exc}") from exc
 
     try:
         active_reporter.on_start(total)
-        for directory in plan.directories:
-            advance(f"mkdir {directory}", _mkdir_action(directory))
-        for planned_file in plan.files:
-            advance(f"write {planned_file.path}", _write_file_action(planned_file))
-        for prepare_file in render_prepare_files(plan):
-            advance(f"write {prepare_file.path}", _write_prepare_action(prepare_file.path, prepare_file.content))
+        if state_store is not None:
+            state_store.prepare_steps(tuple(operation.step_id for operation in operations))
+        for operation in operations:
+            advance(operation)
     except Exception as exc:
         active_reporter.on_error(exc)
         raise StructureBuildError(str(exc)) from exc
@@ -173,6 +341,35 @@ def run_setup(config: ProjectConfig, reporter: Reporter | None = None) -> SetupR
     ValidationPipeline().validate(config)
     plan = build_plan(config)
     return apply_plan(plan, reporter=reporter)
+
+
+def _plan_operations(plan: SimulationPlan) -> tuple[PlannedOperation, ...]:
+    operations: list[PlannedOperation] = []
+    for directory in plan.directories:
+        operations.append(
+            PlannedOperation(
+                step_id=f"mkdir::{directory}",
+                message=f"mkdir {directory}",
+                action=_mkdir_action(directory),
+            )
+        )
+    for planned_file in plan.files:
+        operations.append(
+            PlannedOperation(
+                step_id=f"write::{planned_file.path}",
+                message=f"write {planned_file.path}",
+                action=_write_file_action(planned_file),
+            )
+        )
+    for prepare_file in render_prepare_files(plan):
+        operations.append(
+            PlannedOperation(
+                step_id=f"prepare::{prepare_file.path}",
+                message=f"write {prepare_file.path}",
+                action=_write_prepare_action(prepare_file.path, prepare_file.content),
+            )
+        )
+    return tuple(operations)
 
 
 def render_prepare_files(plan: SimulationPlan, *, download_remote_pdb: bool = True) -> tuple[PlannedFile, ...]:
@@ -251,3 +448,40 @@ def _write_prepare_action(path: Path, contents: str) -> Callable[[], None]:
         path.write_text(contents, encoding="utf-8")
 
     return do_write
+
+
+def _utc_now_rfc3339() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _load_state_payload(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SetupApplyError(f"Failed to parse setup state file at {path}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise SetupApplyError(f"Invalid setup state file at {path}: expected JSON object")
+    return cast(dict[str, object], loaded)
+
+
+def _validate_resume_payload(payload: dict[str, object], *, config_sha256: str, plan_sha256: str) -> None:
+    version = payload.get("state_version")
+    if version != STATE_VERSION:
+        raise SetupApplyError(f"Unsupported setup state version {version}; use --overwrite to reset state.")
+    run_id = payload.get("run_id")
+    created_at = payload.get("created_at_utc")
+    fingerprints = payload.get("config_fingerprints")
+    if not isinstance(run_id, str) or not run_id:
+        raise SetupApplyError("Invalid setup state file: missing run_id")
+    if not isinstance(created_at, str) or not created_at:
+        raise SetupApplyError("Invalid setup state file: missing created_at_utc")
+    if not isinstance(fingerprints, dict):
+        raise SetupApplyError("Invalid setup state file: missing config_fingerprints")
+    typed_fingerprints = cast(dict[str, object], fingerprints)
+    if (
+        typed_fingerprints.get("config_sha256") != config_sha256
+        or typed_fingerprints.get("plan_sha256") != plan_sha256
+    ):
+        raise SetupApplyError("Existing setup state does not match current configuration; use --overwrite.")

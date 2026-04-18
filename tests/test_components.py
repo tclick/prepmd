@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from prepmd.caching import memoize
+from prepmd.cli.commands import setup as setup_command
 from prepmd.cli.main import LICENSE_TEXT, app
 from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig
 from prepmd.config.validators.compatibility import CompatibilityValidator
@@ -14,6 +15,7 @@ from prepmd.config.validators.pipeline import ValidationPipeline
 from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
 from prepmd.config.versioning import migrate_config
+from prepmd.core import run as core_run
 from prepmd.engines.factory import EngineFactory
 from prepmd.exceptions import ConfigurationError, EngineError, StructureBuildError, ValidationError
 from prepmd.file_generator.templates.equilibration import EquilibrationFileGenerator, render_equilibration
@@ -223,6 +225,98 @@ def test_cli_setup_plan_out_is_deterministic(tmp_path: Path) -> None:
     assert result_1.exit_code == 0
     assert result_2.exit_code == 0
     assert first_plan.read_text(encoding="utf-8") == second_plan.read_text(encoding="utf-8")
+
+
+def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: resume-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        encoding="utf-8",
+    )
+    project_root = tmp_path / "resume-demo"
+    state_path = project_root / ".prepmd_state.json"
+
+    original_write_prepare_action = core_run._write_prepare_action
+    interrupted = {"raised": False}
+
+    def flaky_write_prepare_action(path: Path, contents: str):
+        wrapped = original_write_prepare_action(path, contents)
+
+        def run_once() -> None:
+            if not interrupted["raised"]:
+                interrupted["raised"] = True
+                raise RuntimeError("simulated interruption")
+            wrapped()
+
+        return run_once
+
+    monkeypatch.setattr(core_run, "_write_prepare_action", flaky_write_prepare_action)
+    first = runner.invoke(app, ["setup", str(config_path)])
+    assert first.exit_code != 0
+    assert state_path.exists()
+    first_state = json.loads(state_path.read_text(encoding="utf-8"))
+    done_steps = {step_id: step for step_id, step in first_state["steps"].items() if step["status"] == "done"}
+    assert done_steps
+    assert any(step["status"] == "failed" for step in first_state["steps"].values())
+
+    monkeypatch.setattr(core_run, "_write_prepare_action", original_write_prepare_action)
+    resumed = runner.invoke(app, ["setup", str(config_path), "--resume"])
+    assert resumed.exit_code == 0
+    resumed_state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert all(step["status"] == "done" for step in resumed_state["steps"].values())
+    for step_id, step in done_steps.items():
+        assert resumed_state["steps"][step_id]["started_at_utc"] == step["started_at_utc"]
+        assert resumed_state["steps"][step_id]["finished_at_utc"] == step["finished_at_utc"]
+
+
+def test_cli_setup_overwrite_resets_state_and_regenerates(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: overwrite-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        encoding="utf-8",
+    )
+
+    first = runner.invoke(app, ["setup", str(config_path)])
+    assert first.exit_code == 0
+    project_root = tmp_path / "overwrite-demo"
+    state_path = project_root / ".prepmd_state.json"
+    first_state = json.loads(state_path.read_text(encoding="utf-8"))
+    readme_path = project_root / "05_simulations" / "apo" / "replica_001" / "README.md"
+    readme_path.write_text("user-modified", encoding="utf-8")
+
+    second = runner.invoke(app, ["setup", str(config_path), "--overwrite"])
+    assert second.exit_code == 0
+    second_state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert second_state["run_id"] != first_state["run_id"]
+    assert readme_path.read_text(encoding="utf-8") != "user-modified"
+
+
+def test_cli_setup_json_logging_outputs_json_lines_with_step_transitions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: json-log-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(setup_command.console, "print", lambda *args, **kwargs: None)
+
+    result = runner.invoke(app, ["setup", str(config_path), "--log-format", "json"])
+    assert result.exit_code == 0
+    parsed_lines = [json.loads(line) for line in result.output.splitlines() if line.strip()]
+    assert parsed_lines
+    transitions = [
+        entry
+        for entry in parsed_lines
+        if entry.get("record", {}).get("extra", {}).get("event") == "step_transition"
+    ]
+    assert transitions
+    statuses = {entry["record"]["extra"]["status"] for entry in transitions}
+    assert "running" in statuses
+    assert "done" in statuses
 
 
 def test_cli_prepare(tmp_path: Path) -> None:
