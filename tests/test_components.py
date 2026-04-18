@@ -241,10 +241,44 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     assert "config.input.toml" in names
     assert "config.resolved.yaml" in names
     assert "plan.json" in names
+    assert "plan.preview.txt" in names
+    assert "plan.sha256" in names
     assert "manifest.json" in names
+    assert ".prepmd_state.json" in names
+    assert "schema_reference.json" in names
+    assert "pdb_cache_status.json" in names
     assert "env.json" in names
     assert "logs.txt" in names
     assert "command.txt" in names
+
+
+def test_cli_setup_debug_bundle_redacts_home_and_secret_env_and_respects_json_log_format(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_dir = tmp_path / "bundle-out"
+    bundle_path = tmp_path / "debug.zip"
+    home = Path.home()
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: redact-demo\noutput_dir: {output_dir}\nprotein:\n  pdb_file: {home / 'input.pdb'}\n",
+        encoding="utf-8",
+    )
+    result = runner.invoke(
+        app,
+        ["setup", str(config_path), "--debug-bundle", str(bundle_path), "--log-format", "json"],
+        env={"API_TOKEN": "super-secret-token"},
+    )
+    assert result.exit_code == 0
+
+    with ZipFile(bundle_path) as archive:
+        names = set(archive.namelist())
+        assert "logs.jsonl" in names
+        assert "logs.txt" not in names
+        env_json = archive.read("env.json").decode("utf-8")
+        resolved_yaml = archive.read("config.resolved.yaml").decode("utf-8")
+        assert "$HOME" in resolved_yaml
+        assert str(home) not in resolved_yaml
+        assert "super-secret-token" not in env_json
+        assert "API_TOKEN" in env_json
 
 
 def test_cli_setup_plan_out_is_deterministic(tmp_path: Path) -> None:

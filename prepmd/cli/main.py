@@ -155,6 +155,7 @@ def setup(
             debug_bundle=debug_bundle,
             resume=resume,
             overwrite=overwrite,
+            log_format=log_format,
         )
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
