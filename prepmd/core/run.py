@@ -378,11 +378,12 @@ def render_prepare_files(
 ) -> tuple[PlannedFile, ...]:
     """Render deterministic prepare-file contents for a plan."""
     engine = EngineFactory.create(plan.config.engine.name)
-    shared_pdb_file = (
-        _resolve_shared_pdb_file(plan.config, offline=offline)
-        if download_remote_pdb
-        else _resolve_plan_pdb_reference(plan.config)
-    )
+    if offline:
+        shared_pdb_file = _resolve_shared_pdb_file(plan.config, offline=True)
+    elif download_remote_pdb:
+        shared_pdb_file = _resolve_shared_pdb_file(plan.config)
+    else:
+        shared_pdb_file = _resolve_plan_pdb_reference(plan.config)
     rendered: list[PlannedFile] = []
     for prepare_file in plan.prepare_files:
         pdb_file = plan.config.protein.pdb_files.get(prepare_file.variant) or shared_pdb_file

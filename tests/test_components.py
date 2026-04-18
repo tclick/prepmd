@@ -544,8 +544,8 @@ def test_cli_prepare_json_logging_outputs_json_lines_with_step_transitions(
     assert "done" in statuses
 
 
-@pytest.mark.parametrize("cli_command", ["setup", "prepare"])
-def test_cli_offline_mode_validates_pdb_cache_availability(cli_command: str, tmp_path: Path) -> None:
+@pytest.mark.parametrize("subcommand", ["setup", "prepare"])
+def test_cli_offline_mode_validates_pdb_cache_availability(subcommand: str, tmp_path: Path) -> None:
     runner = CliRunner()
     cache_dir = tmp_path / "cache"
     config_path = tmp_path / "cfg.yaml"
@@ -555,11 +555,11 @@ def test_cli_offline_mode_validates_pdb_cache_availability(cli_command: str, tmp
         "protein": {"pdb_id": "1abc", "pdb_cache_dir": str(cache_dir)},
     }
     config_path.write_text(yaml.safe_dump(config_payload, sort_keys=True), encoding="utf-8")
-    if cli_command == "setup":
-        command_args = [cli_command, str(config_path), "--offline"]
+    if subcommand == "setup":
+        command_args = [subcommand, str(config_path), "--offline"]
     else:
         command_args = [
-            cli_command,
+            subcommand,
             "--project-name",
             "offline-demo",
             "--output-dir",
