@@ -191,8 +191,7 @@ class SetupStateStore:
         for raw_key, raw_value in raw_steps.items():
             if isinstance(raw_key, str) and isinstance(raw_value, dict):
                 typed_steps[raw_key] = cast(dict[str, object], raw_value)
-        if typed_steps is not raw_steps_obj:
-            self._payload["steps"] = typed_steps
+        self._payload["steps"] = typed_steps
         return typed_steps
 
 
@@ -287,7 +286,7 @@ def apply_plan(
                     name=operation.message,
                     success=True,
                     message="skipped(done)",
-                    metadata={"step_id": operation.step_id, "status": "done", "skipped": "true"},
+                    metadata={"step_id": operation.step_id, "status": "done"},
                 )
             )
             return

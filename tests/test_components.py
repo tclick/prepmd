@@ -266,6 +266,8 @@ def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pyt
     resumed_state = json.loads(state_path.read_text(encoding="utf-8"))
     assert all(step["status"] == "done" for step in resumed_state["steps"].values())
     for step_id, step in done_steps.items():
+        assert step["started_at_utc"] is not None
+        assert step["finished_at_utc"] is not None
         assert resumed_state["steps"][step_id]["started_at_utc"] == step["started_at_utc"]
         assert resumed_state["steps"][step_id]["finished_at_utc"] == step["finished_at_utc"]
 
