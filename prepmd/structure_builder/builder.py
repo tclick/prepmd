@@ -210,7 +210,7 @@ class StructureBuilder(SimulationPlan):
         if protein.pdb_id is None:
             return None
         cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
-        downloaded = PDBHandler(cache_dir=cache_dir).get_or_download(protein.pdb_id)
+        downloaded = PDBHandler(cache_dir=cache_dir, offline=protein.offline).get_or_download(protein.pdb_id)
         return str(downloaded)
 
     def _write_subdirectory_readme(self, directory: Path, title: str) -> None:

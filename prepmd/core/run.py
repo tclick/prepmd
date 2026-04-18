@@ -418,16 +418,7 @@ def _resolve_shared_pdb_file(config: ProjectConfig, *, offline: bool = False) ->
     if protein.pdb_id is None:
         return None
     cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
-    handler = PDBHandler(cache_dir=cache_dir)
-    if offline:
-        cached = handler.cache_path(protein.pdb_id)
-        if not cached.exists():
-            raise SetupApplyError(
-                f"Offline mode is enabled and cached PDB '{protein.pdb_id.upper()}' was not found at {cached}. "
-                "Run 'prepmd setup' or 'prepmd prepare' once without --offline to populate the cache, then retry."
-            )
-        return str(cached)
-    downloaded = handler.get_or_download(protein.pdb_id)
+    downloaded = PDBHandler(cache_dir=cache_dir, offline=offline or protein.offline).get_or_download(protein.pdb_id)
     return str(downloaded)
 
 

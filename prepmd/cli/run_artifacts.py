@@ -12,6 +12,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from prepmd import __version__
 from prepmd.config.models import ProjectConfig
+from prepmd.core.plan_fingerprint import compute_plan_sha256
 from prepmd.core.run import PlannedFile, SimulationPlan
 from prepmd.models.results import RunResult
 
@@ -32,6 +33,7 @@ def build_manifest(
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "mode": "dry_run" if dry_run else "apply",
+        "plan_sha256": compute_plan_sha256(plan),
         "config_hash": _hash_text(stable_json(config.model_dump(mode="json"))),
         "input": _input_fingerprint(config),
         "generated_files": [

@@ -18,7 +18,9 @@ from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
 from prepmd.config.versioning import migrate_config
 from prepmd.core import run as core_run
+from prepmd.engines.base import EngineCapabilities
 from prepmd.engines.factory import EngineFactory
+from prepmd.engines.plugins.amber.engine import AmberEngine as PluginAmberEngine
 from prepmd.exceptions import ConfigurationError, EngineError, StructureBuildError, ValidationError
 from prepmd.file_generator.templates.equilibration import EquilibrationFileGenerator, render_equilibration
 from prepmd.file_generator.templates.heating import HeatingFileGenerator, render_heating
@@ -88,6 +90,22 @@ def test_validators(config: ProjectConfig) -> None:
     bad_ensemble = config.model_copy(update={"simulation": config.simulation.model_copy(update={"ensemble": "BAD"})})
     with pytest.raises(ValidationError):
         EnsembleValidator().validate(bad_ensemble)
+
+
+def test_compatibility_validator_uses_engine_capabilities_for_ensemble(
+    config: ProjectConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        PluginAmberEngine,
+        "_CAPABILITIES",
+        EngineCapabilities(
+            supported_ensembles=frozenset({"NVT"}),
+            supported_box_shapes=frozenset({"cubic", "truncated_octahedron", "orthorhombic"}),
+        ),
+    )
+    config.simulation.ensemble = "NVE"
+    with pytest.raises(ValidationError, match="ensemble NVE is not supported by amber"):
+        CompatibilityValidator().validate(config)
 
 
 def test_validation_pipeline(config: ProjectConfig) -> None:
@@ -223,6 +241,8 @@ def test_cli_setup_apply_writes_manifest_and_outputs(tmp_path: Path) -> None:
     assert manifest_path.exists()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["manifest_version"] == 1
+    assert isinstance(manifest["plan_sha256"], str)
+    assert len(manifest["plan_sha256"]) == 64
     assert manifest["outputs"]["output_dir"] == str(tmp_path.resolve())
     assert manifest["outputs"]["files"]
 
@@ -259,6 +279,8 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     assert bundle_path.exists()
     with ZipFile(bundle_path) as archive:
         names = set(archive.namelist())
+        env = json.loads(archive.read("env.json").decode("utf-8"))
+        manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
     assert "config.input.toml" in names
     assert "config.resolved.yaml" in names
     assert "plan.json" in names
@@ -266,6 +288,8 @@ def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> Non
     assert "env.json" in names
     assert "logs.txt" in names
     assert "command.txt" in names
+    assert isinstance(env["plan_sha256"], str)
+    assert env["plan_sha256"] == manifest["plan_sha256"]
 
 
 def test_cli_prepare_debug_bundle_contains_expected_members(tmp_path: Path) -> None:
@@ -345,6 +369,7 @@ def test_cli_setup_resume_skips_completed_steps(tmp_path: Path, monkeypatch: pyt
     assert first.exit_code != 0
     assert state_path.exists()
     first_state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert isinstance(first_state["config_fingerprints"]["plan_sha256"], str)
     done_steps = {step_id: step for step_id, step in first_state["steps"].items() if step["status"] == "done"}
     assert done_steps
     assert any(step["status"] == "failed" for step in first_state["steps"].values())
@@ -572,7 +597,7 @@ def test_cli_offline_mode_validates_pdb_cache_availability(subcommand: str, tmp_
         ]
     missing_cache = runner.invoke(app, command_args)
     assert missing_cache.exit_code != 0
-    assert "Offline mode is enabled and cached PDB" in missing_cache.output
+    assert "Offline mode is enabled" in missing_cache.output
 
     cache_dir.mkdir(parents=True)
     (cache_dir / "1ABC.pdb").write_text("HEADER OFFLINE CACHE\n", encoding="utf-8")
@@ -637,6 +662,66 @@ def test_cli_prepare_with_config_and_cli_overrides(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert (tmp_path / "from-config" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in").exists()
     assert (tmp_path / "from-config" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
+
+
+def test_cli_prepare_offline_uses_cached_pdb_without_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    (cache_dir / "1ABC.pdb").write_text("cached", encoding="utf-8")
+
+    def should_not_download(*args: object, **kwargs: object) -> str:
+        raise AssertionError("network should not be used in offline mode")
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", should_not_download)
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep-offline",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-id",
+            "1abc",
+            "--pdb-cache-dir",
+            str(cache_dir),
+            "--offline",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (tmp_path / "prep-offline" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").exists()
+
+
+def test_cli_setup_offline_fails_fast_on_cache_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    cache_dir = tmp_path / "cache"
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        (
+            "project_name: setup-offline\n"
+            f"output_dir: {tmp_path}\n"
+            "protein:\n"
+            "  pdb_id: 1abc\n"
+            f"  pdb_cache_dir: {cache_dir}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def should_not_download(*args: object, **kwargs: object) -> str:
+        raise AssertionError("network should not be used in offline mode")
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", should_not_download)
+
+    result = runner.invoke(app, ["setup", str(config_path), "--offline"])
+
+    assert result.exit_code != 0
+    assert "Offline mode is enabled" in result.output
+    assert "Pre-populate this cache file" in result.output
+    assert "--pdb-cache-dir" in result.output
+    assert "protein.pdb_cache_dir" in result.output
 
 
 def test_cli_prepare_with_orthorhombic_box_dimensions(tmp_path: Path) -> None:
