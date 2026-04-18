@@ -311,9 +311,7 @@ def test_cli_setup_json_logging_outputs_json_lines_with_step_transitions(
     parsed_lines = [json.loads(line) for line in result.output.splitlines() if line.strip()]
     assert parsed_lines
     transitions = [
-        entry
-        for entry in parsed_lines
-        if entry.get("record", {}).get("extra", {}).get("event") == "step_transition"
+        entry for entry in parsed_lines if entry.get("record", {}).get("extra", {}).get("event") == "step_transition"
     ]
     assert transitions
     statuses = {entry["record"]["extra"]["status"] for entry in transitions}

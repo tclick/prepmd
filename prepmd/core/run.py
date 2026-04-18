@@ -482,8 +482,5 @@ def _validate_resume_payload(payload: dict[str, object], *, config_sha256: str, 
     if not isinstance(fingerprints, dict):
         raise SetupApplyError("Invalid setup state file: missing config_fingerprints")
     typed_fingerprints = cast(dict[str, object], fingerprints)
-    if (
-        typed_fingerprints.get("config_sha256") != config_sha256
-        or typed_fingerprints.get("plan_sha256") != plan_sha256
-    ):
+    if typed_fingerprints.get("config_sha256") != config_sha256 or typed_fingerprints.get("plan_sha256") != plan_sha256:
         raise SetupApplyError("Existing setup state does not match current configuration; use --overwrite.")
