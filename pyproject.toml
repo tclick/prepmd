@@ -47,6 +47,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = [
+    "sphinx>=8.3.0",
+    "sphinx-rtd-theme>=3.0.2",
+]
+gui = [
+    "PyQt6>=6.7.1",
+]
 dev = [
     "nox>=2024.10.9",
     "pre-commit>=4.0.1",
@@ -56,8 +63,6 @@ dev = [
     "ruff>=0.11.0",
     "basedpyright>=1.22.1",
     "typeguard>=4.4.2",
-    "sphinx>=8.3.0",
-    "sphinx-rtd-theme>=3.0.2",
     "types-pyyaml>=6.0.12.20240311",
 ]
 
@@ -66,14 +71,15 @@ prepmd = "prepmd.cli.main:main"
 prepmd-gui = "prepmd.gui.main:main"
 
 [project.entry-points."prepmd.engines"]
-amber = "prepmd.engines.amber:AmberEngine"
-gromacs = "prepmd.engines.gromacs:GromacsEngine"
-namd = "prepmd.engines.namd:NamdEngine"
-charmm = "prepmd.engines.charmm:CharmmEngine"
-openmm = "prepmd.engines.openmm:OpenmmEngine"
+amber = "prepmd.engines.plugins.amber.engine:AmberEngine"
+gromacs = "prepmd.engines.plugins.gromacs.engine:GromacsEngine"
+namd = "prepmd.engines.plugins.namd.engine:NamdEngine"
+charmm = "prepmd.engines.plugins.charmm.engine:CharmmEngine"
+openmm = "prepmd.engines.plugins.openmm.engine:OpenmmEngine"
 
 [tool.hatch.build.targets.wheel]
 packages = ["prepmd"]
+include = ["prepmd/resources/*.json", "prepmd/resources/*.tmpl"]
 
 [tool.ruff]
 line-length = 120

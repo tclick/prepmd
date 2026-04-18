@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from prepmd.caching import memoize
 from prepmd.cli.commands import setup as setup_command
 from prepmd.cli.main import LICENSE_TEXT, app
+from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig
 from prepmd.config.validators.compatibility import CompatibilityValidator
 from prepmd.config.validators.ensemble import EnsembleValidator
@@ -147,6 +148,43 @@ def test_cli_setup_dry_run_makes_no_output_writes(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert not (tmp_path / "dry-demo").exists()
     assert not (tmp_path / "manifest.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("format_name", "filename"),
+    [("yaml", "prepmd.yaml"), ("toml", "prepmd.toml")],
+)
+def test_cli_init_generates_valid_config_and_setup_dry_run(tmp_path: Path, format_name: str, filename: str) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / filename
+    init_result = runner.invoke(app, ["init", "--format", format_name, "--output", str(config_path)])
+    assert init_result.exit_code == 0
+    assert config_path.exists()
+
+    config = ConfigLoader().load_project_config(config_path)
+    assert isinstance(config, ProjectConfig)
+
+    setup_result = runner.invoke(app, ["setup", str(config_path), "--dry-run"])
+    assert setup_result.exit_code == 0
+
+
+@pytest.mark.parametrize(
+    ("format_name", "filename"),
+    [("yaml", "prepmd.yaml"), ("toml", "prepmd.toml")],
+)
+def test_cli_init_defaults_output_and_force_overwrite(tmp_path: Path, format_name: str, filename: str) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=str(tmp_path)):
+        config_path = Path.cwd() / filename
+        first_result = runner.invoke(app, ["init", "--format", format_name])
+        assert first_result.exit_code == 0
+        assert config_path.exists()
+
+        second_result = runner.invoke(app, ["init", "--format", format_name])
+        assert second_result.exit_code != 0
+
+        forced_result = runner.invoke(app, ["init", "--format", format_name, "--force"])
+        assert forced_result.exit_code == 0
 
 
 def test_cli_setup_apply_writes_manifest_and_outputs(tmp_path: Path) -> None:
