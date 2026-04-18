@@ -215,7 +215,7 @@ def prepare(
     offline: bool = SETUP_OFFLINE_OPTION,
     log_format: Literal["text", "json"] = SETUP_LOG_FORMAT_OPTION,
 ) -> None:
-    """Set up project structure from CLI arguments and optional configuration."""
+    """Prepare simulation scaffolding from CLI arguments and optional configuration."""
 
     configure_logging(log_format=log_format)
 

@@ -365,11 +365,11 @@ def test_cli_prepare_resume_skips_completed_steps(tmp_path: Path, monkeypatch: p
     project_root = tmp_path / "resume-prepare-demo"
     state_path = project_root / ".prepmd_state.json"
 
-    original_write_prepare_action = core_run._write_prepare_action
+    original_write_prepare_action_fn = core_run._write_prepare_action
     interrupted = {"raised": False}
 
     def make_interruptible_write_action(path: Path, contents: str):
-        wrapped = original_write_prepare_action(path, contents)
+        wrapped = original_write_prepare_action_fn(path, contents)
 
         def run_once() -> None:
             if not interrupted["raised"]:
@@ -399,7 +399,7 @@ def test_cli_prepare_resume_skips_completed_steps(tmp_path: Path, monkeypatch: p
     assert done_steps
     assert any(step["status"] == "failed" for step in first_state["steps"].values())
 
-    monkeypatch.setattr(core_run, "_write_prepare_action", original_write_prepare_action)
+    monkeypatch.setattr(core_run, "_write_prepare_action", original_write_prepare_action_fn)
     resumed = runner.invoke(
         app,
         [
@@ -544,7 +544,7 @@ def test_cli_prepare_json_logging_outputs_json_lines_with_step_transitions(
 
 
 @pytest.mark.parametrize("cli_command", ["setup", "prepare"])
-def test_cli_offline_mode_requires_cached_pdb_for_pdb_id(cli_command: str, tmp_path: Path) -> None:
+def test_cli_offline_mode_validates_pdb_cache_availability(cli_command: str, tmp_path: Path) -> None:
     runner = CliRunner()
     cache_dir = tmp_path / "cache"
     config_path = tmp_path / "cfg.yaml"
