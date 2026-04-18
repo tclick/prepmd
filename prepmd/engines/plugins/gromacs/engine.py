@@ -43,4 +43,3 @@ class GromacsEngine(Engine):
             "gmx solvate -cp boxed.gro -cs spc216.gro -o solvated.gro -p topol.top\n"
             f"# cutoff {cutoff:.3f} spacing {spacing:.3f}\n"
         )
-

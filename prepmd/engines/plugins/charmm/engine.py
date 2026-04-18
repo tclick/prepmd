@@ -39,4 +39,3 @@ class CharmmEngine(Engine):
             "read rtf card name top_all36_prot.rtf\n"
             "read param card name par_all36m_prot.prm\n"
         )
-

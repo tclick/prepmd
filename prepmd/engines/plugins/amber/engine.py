@@ -51,4 +51,3 @@ class AmberEngine(Engine):
             "saveamberparm mol system.prmtop system.inpcrd\n"
             "quit\n"
         )
-

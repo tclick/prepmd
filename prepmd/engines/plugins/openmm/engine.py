@@ -41,4 +41,3 @@ class OpenmmEngine(Engine):
             f"# box shape: {config.water_box.shape}\n"
             f"# suggested cutoff {cutoff:.3f} spacing {spacing:.3f}\n"
         )
-

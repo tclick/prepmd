@@ -39,4 +39,3 @@ class NamdEngine(Engine):
             f"# Suggested cutoff {cutoff:.3f} spacing {spacing:.3f}\n"
             "autopsf -top top_all36_prot.rtf -top par_all36m_prot.prm system.pdb\n"
         )
-
