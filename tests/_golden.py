@@ -94,11 +94,7 @@ def _assert_snapshot(*, snapshot: GoldenSnapshot, scenario_golden: Path) -> None
     expected_tree = _normalize_text(tree_path.read_text(encoding="utf-8"))
     assert snapshot.tree_listing == expected_tree
 
-    expected_files = sorted(
-        path.relative_to(files_path).as_posix()
-        for path in files_path.rglob("*")
-        if path.is_file()
-    )
+    expected_files = sorted(path.relative_to(files_path).as_posix() for path in files_path.rglob("*") if path.is_file())
     actual_files = sorted(snapshot.text_files)
     assert actual_files == expected_files
 
