@@ -134,16 +134,95 @@ def test_cli_license_and_setup(tmp_path: Path) -> None:
     assert (tmp_path / "cli-demo" / "05_simulations" / "apo" / "replica_001" / "README.md").exists()
 
 
-def test_cli_setup_dry_run(tmp_path: Path) -> None:
+def test_cli_setup_dry_run_makes_no_output_writes(tmp_path: Path) -> None:
     runner = CliRunner()
     config_path = tmp_path / "cfg.yaml"
     config_path.write_text(
-        f"project_name: cli-dry-run\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        f"project_name: dry-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
         encoding="utf-8",
     )
     result = runner.invoke(app, ["setup", str(config_path), "--dry-run"])
     assert result.exit_code == 0
-    assert not (tmp_path / "cli-dry-run").exists()
+    assert not (tmp_path / "dry-demo").exists()
+    assert not (tmp_path / "manifest.json").exists()
+
+
+def test_cli_setup_apply_writes_manifest_and_outputs(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: apply-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        encoding="utf-8",
+    )
+    result = runner.invoke(app, ["setup", str(config_path)])
+    assert result.exit_code == 0
+    project_root = tmp_path / "apply-demo"
+    manifest_path = tmp_path / "manifest.json"
+    assert project_root.exists()
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["manifest_version"] == 1
+    assert manifest["outputs"]["output_dir"] == str(tmp_path.resolve())
+    assert manifest["outputs"]["files"]
+
+
+def test_cli_setup_manifest_tracks_output_dir_override_provenance(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_dir = tmp_path / "config-out"
+    cli_dir = tmp_path / "cli-out"
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: provenance-demo\noutput_dir: {config_dir}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        encoding="utf-8",
+    )
+    result = runner.invoke(app, ["setup", str(config_path), "--output-dir", str(cli_dir)])
+    assert result.exit_code == 0
+    manifest_path = cli_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    output_resolution = manifest["config_resolution"]["output_dir"]
+    assert output_resolution["source"] == "cli"
+    assert output_resolution["value"] == str(cli_dir.resolve())
+
+
+def test_cli_setup_debug_bundle_contains_expected_members(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_dir = tmp_path / "bundle-out"
+    bundle_path = tmp_path / "debug.zip"
+    config_path = tmp_path / "cfg.toml"
+    config_path.write_text(
+        (f'project_name = "bundle-demo"\noutput_dir = "{output_dir}"\n[protein]\npdb_file = "/tmp/input.pdb"\n'),
+        encoding="utf-8",
+    )
+    result = runner.invoke(app, ["setup", str(config_path), "--debug-bundle", str(bundle_path)])
+    assert result.exit_code == 0
+    assert bundle_path.exists()
+    with ZipFile(bundle_path) as archive:
+        names = set(archive.namelist())
+    assert "config.input.toml" in names
+    assert "config.resolved.yaml" in names
+    assert "plan.json" in names
+    assert "manifest.json" in names
+    assert "env.json" in names
+    assert "logs.txt" in names
+    assert "command.txt" in names
+
+
+def test_cli_setup_plan_out_is_deterministic(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(
+        f"project_name: plan-demo\noutput_dir: {tmp_path}\nprotein:\n  pdb_file: /tmp/input.pdb\n",
+        encoding="utf-8",
+    )
+    first_plan = tmp_path / "plan-1.json"
+    second_plan = tmp_path / "plan-2.json"
+
+    result_1 = runner.invoke(app, ["setup", str(config_path), "--dry-run", "--plan-out", str(first_plan)])
+    result_2 = runner.invoke(app, ["setup", str(config_path), "--dry-run", "--plan-out", str(second_plan)])
+
+    assert result_1.exit_code == 0
+    assert result_2.exit_code == 0
+    assert first_plan.read_text(encoding="utf-8") == second_plan.read_text(encoding="utf-8")
 
 
 def test_cli_prepare(tmp_path: Path) -> None:
@@ -237,74 +316,6 @@ def test_cli_prepare_requires_project_name_without_config() -> None:
     result = runner.invoke(app, ["prepare"])
     assert result.exit_code != 0
     assert "Project name is required" in result.output
-
-
-def test_cli_prepare_dry_run_does_not_write_project(tmp_path: Path) -> None:
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "prepare",
-            "--project-name",
-            "dry-run-demo",
-            "--output-dir",
-            str(tmp_path),
-            "--pdb-file",
-            str(tmp_path / "input.pdb"),
-            "--dry-run",
-        ],
-    )
-    assert result.exit_code == 0
-    assert "Dry-run" in result.output
-    assert not (tmp_path / "dry-run-demo").exists()
-
-
-def test_cli_prepare_writes_manifest(tmp_path: Path) -> None:
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "prepare",
-            "--project-name",
-            "manifest-demo",
-            "--output-dir",
-            str(tmp_path),
-            "--pdb-file",
-            str(tmp_path / "input.pdb"),
-        ],
-    )
-    assert result.exit_code == 0
-    manifest_path = tmp_path / "manifest-demo" / "manifest.json"
-    assert manifest_path.exists()
-    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert payload["mode"] == "apply"
-    assert payload["config_hash"]
-    assert payload["generated_files"]
-
-
-def test_cli_prepare_dry_run_debug_bundle(tmp_path: Path) -> None:
-    runner = CliRunner()
-    bundle_path = tmp_path / "prepmd-debug.zip"
-    result = runner.invoke(
-        app,
-        [
-            "prepare",
-            "--project-name",
-            "bundle-demo",
-            "--output-dir",
-            str(tmp_path),
-            "--pdb-file",
-            str(tmp_path / "input.pdb"),
-            "--dry-run",
-            "--debug-bundle",
-            str(bundle_path),
-        ],
-    )
-    assert result.exit_code == 0
-    assert bundle_path.exists()
-    with ZipFile(bundle_path) as archive:
-        names = set(archive.namelist())
-    assert {"config.json", "manifest.json", "plan_preview.txt", "logs.txt", "environment.json"} <= names
 
 
 def test_cli_prepare_enforces_pdb_input_mutual_exclusivity(tmp_path: Path) -> None:
