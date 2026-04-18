@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import final
 
 from prepmd.config.models import ProjectConfig
 from prepmd.core.box_geometry import BoxGeometry, build_box_geometry
@@ -31,6 +32,7 @@ class Engine(ABC):
     def capabilities(self) -> EngineCapabilities:
         """Static capability metadata for this engine."""
 
+    @final
     @property
     def supported_box_shapes(self) -> set[str]:
         """Set of native water-box shapes supported by this engine."""

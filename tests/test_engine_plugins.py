@@ -74,4 +74,5 @@ def test_builtin_engine_capabilities_are_exposed(engine_name: str, ensembles: se
     assert isinstance(capabilities, EngineCapabilities)
     assert set(capabilities.supported_ensembles) == ensembles
     assert set(capabilities.supported_box_shapes) == box_shapes
+    assert engine.supported_box_shapes == set(capabilities.supported_box_shapes)
     assert engine.supported_box_shapes == box_shapes
