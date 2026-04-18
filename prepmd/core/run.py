@@ -138,7 +138,6 @@ def apply_plan(plan: SimulationPlan, reporter: Reporter | None = None) -> SetupR
     step_results: list[StepResult] = []
     current = 0
     total = plan.total_steps
-    engine = EngineFactory.create(plan.config.engine.name)
 
     def advance(message: str, fn: Callable[[], None]) -> None:
         nonlocal current
@@ -153,15 +152,12 @@ def apply_plan(plan: SimulationPlan, reporter: Reporter | None = None) -> SetupR
 
     try:
         active_reporter.on_start(total)
-        shared_pdb_file = _resolve_shared_pdb_file(plan.config)
         for directory in plan.directories:
             advance(f"mkdir {directory}", _mkdir_action(directory))
         for planned_file in plan.files:
             advance(f"write {planned_file.path}", _write_file_action(planned_file))
-        for prepare_file in plan.prepare_files:
-            pdb_file = plan.config.protein.pdb_files.get(prepare_file.variant) or shared_pdb_file
-            contents = engine.prepare_from_pdb(pdb_file, plan.config)
-            advance(f"write {prepare_file.path}", _write_prepare_action(prepare_file.path, contents))
+        for prepare_file in render_prepare_files(plan):
+            advance(f"write {prepare_file.path}", _write_prepare_action(prepare_file.path, prepare_file.content))
     except Exception as exc:
         active_reporter.on_error(exc)
         raise StructureBuildError(str(exc)) from exc
@@ -177,6 +173,20 @@ def run_setup(config: ProjectConfig, reporter: Reporter | None = None) -> SetupR
     ValidationPipeline().validate(config)
     plan = build_plan(config)
     return apply_plan(plan, reporter=reporter)
+
+
+def render_prepare_files(plan: SimulationPlan, *, download_remote_pdb: bool = True) -> tuple[PlannedFile, ...]:
+    """Render deterministic prepare-file contents for a plan."""
+    engine = EngineFactory.create(plan.config.engine.name)
+    shared_pdb_file = (
+        _resolve_shared_pdb_file(plan.config) if download_remote_pdb else _resolve_plan_pdb_reference(plan.config)
+    )
+    rendered: list[PlannedFile] = []
+    for prepare_file in plan.prepare_files:
+        pdb_file = plan.config.protein.pdb_files.get(prepare_file.variant) or shared_pdb_file
+        contents = engine.prepare_from_pdb(pdb_file, plan.config)
+        rendered.append(PlannedFile(prepare_file.path, contents))
+    return tuple(rendered)
 
 
 def _plan_protocol_directories(
@@ -207,6 +217,15 @@ def _resolve_shared_pdb_file(config: ProjectConfig) -> str | None:
     cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
     downloaded = PDBHandler(cache_dir=cache_dir).get_or_download(protein.pdb_id)
     return str(downloaded)
+
+
+def _resolve_plan_pdb_reference(config: ProjectConfig) -> str | None:
+    protein = config.protein
+    if protein.pdb_file is not None:
+        return protein.pdb_file
+    if protein.pdb_id is not None:
+        return f"pdb:{protein.pdb_id.upper()}"
+    return None
 
 
 def _render_subdirectory_readme(title: str) -> str:
