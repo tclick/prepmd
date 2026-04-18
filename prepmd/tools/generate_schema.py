@@ -48,6 +48,10 @@ def _field_type(metadata: dict[str, Any]) -> str:
     return "object"
 
 
+def _required_text(*, required: bool) -> str:
+    return "yes" if required else "no"
+
+
 def schema_to_reference_rst(schema: dict[str, Any]) -> str:
     """Render a simple config reference page from JSON schema content."""
     lines = [
@@ -75,7 +79,7 @@ def schema_to_reference_rst(schema: dict[str, Any]) -> str:
             [
                 f"   * - ``{name}``",
                 f"     - ``{field_type}``",
-                f"     - {'yes' if name in required else 'no'}",
+                f"     - {_required_text(required=name in required)}",
                 f"     - ``{default}``" if default != "" else "     - ",
                 f"     - {description}",
             ]
@@ -115,7 +119,7 @@ def schema_to_reference_rst(schema: dict[str, Any]) -> str:
                 [
                     f"   * - ``{field_name}``",
                     f"     - ``{field_type}``",
-                    f"     - {'yes' if field_name in model_required else 'no'}",
+                    f"     - {_required_text(required=field_name in model_required)}",
                     f"     - ``{default}``" if default != "" else "     - ",
                     f"     - {description}",
                 ]
@@ -151,8 +155,7 @@ def main() -> None:
     if args.output is None:
         print(canonical_schema_json(schema), end="")
     else:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(canonical_schema_json(schema), encoding="utf-8")
+        write_schema(args.output)
     if args.reference_rst is not None:
         write_reference(args.reference_rst, schema=schema)
 

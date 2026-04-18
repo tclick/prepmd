@@ -5,6 +5,6 @@ prepmd documentation
    :maxdepth: 2
    :caption: Contents:
 
-   configuration_schema
+   config_overview
    config_reference
    api
