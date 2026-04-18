@@ -74,6 +74,7 @@ openmm = "prepmd.engines.openmm:OpenmmEngine"
 
 [tool.hatch.build.targets.wheel]
 packages = ["prepmd"]
+include = ["prepmd/resources/*.json", "prepmd/resources/*.tmpl"]
 
 [tool.ruff]
 line-length = 120

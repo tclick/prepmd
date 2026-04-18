@@ -6,4 +6,5 @@ prepmd documentation
    :caption: Contents:
 
    configuration_schema
+   config_reference
    api
