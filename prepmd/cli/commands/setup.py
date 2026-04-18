@@ -21,6 +21,7 @@ from rich.table import Table
 from prepmd import __version__
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.validators.pipeline import ValidationPipeline
+from prepmd.core.plan_fingerprint import compute_plan_sha256
 from prepmd.core.reporting import NullReporter, Reporter
 from prepmd.core.run import SetupStateStore, SimulationPlan, apply_plan, build_plan
 from prepmd.exceptions import SetupApplyError
@@ -76,6 +77,7 @@ def setup_project(
     ValidationPipeline().validate(config)
 
     plan = build_plan(config)
+    plan_sha256 = compute_plan_sha256(plan)
     plan_payload = _build_plan_payload(plan)
     plan_json = _json_text(plan_payload)
     if plan_out is not None:
@@ -97,7 +99,7 @@ def setup_project(
         state_store = SetupStateStore.create(
             plan.root_dir,
             config_sha256=_sha256_bytes(raw_config_text.encode("utf-8")),
-            plan_sha256=_sha256_bytes(plan_json.encode("utf-8")),
+            plan_sha256=plan_sha256,
             resume=resume and not overwrite,
         )
         result = apply_plan(plan, reporter=reporter, state_store=state_store, resume=resume and not overwrite)
@@ -109,6 +111,7 @@ def setup_project(
             raw_config_text=raw_config_text,
             generated_files=generated_files,
             output_source=output_source,
+            plan_sha256=plan_sha256,
         )
         manifest_path = manifest if manifest is not None else resolved_output_dir / "manifest.json"
         _write_text(manifest_path, _json_text(manifest_payload))
@@ -117,7 +120,7 @@ def setup_project(
 
     if debug_bundle is not None:
         resolved_config_yaml = yaml.safe_dump(config.model_dump(mode="json"), sort_keys=True)
-        env_json = _json_text(_environment_payload())
+        env_json = _json_text(_environment_payload(plan_sha256=plan_sha256))
         _write_debug_bundle(
             debug_bundle=debug_bundle,
             input_extension=input_extension,
@@ -196,6 +199,7 @@ def _build_manifest(
     raw_config_text: str,
     generated_files: tuple[Path, ...],
     output_source: str,
+    plan_sha256: str,
 ) -> dict[str, object]:
     output_dir = Path(plan.config.output_dir).expanduser().resolve()
     files = [
@@ -210,6 +214,7 @@ def _build_manifest(
     return {
         "manifest_version": 1,
         "created_at_utc": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "plan_sha256": plan_sha256,
         "prepmd": {"version": __version__},
         "python": {"version": platform.python_version()},
         "platform": {
@@ -267,8 +272,9 @@ def _pdb_input_payload(
     return {"source": "file", "variants": variants}
 
 
-def _environment_payload() -> dict[str, object]:
+def _environment_payload(*, plan_sha256: str) -> dict[str, object]:
     return {
+        "plan_sha256": plan_sha256,
         "prepmd_version": __version__,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
