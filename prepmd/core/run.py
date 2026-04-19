@@ -467,10 +467,7 @@ def _resolve_variant_pdb_inputs(
     structures_dir: Path | None = None,
 ) -> dict[str, str | None]:
     protein = config.protein
-    structure_format = prefer_remote_structure_format(
-        protein.structure_format,
-        explicitly_set="structure_format" in protein.model_fields_set,
-    )
+    structure_format = prefer_remote_structure_format(protein.structure_format)
     cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
     handler = PDBHandler(
         cache_dir=cache_dir,

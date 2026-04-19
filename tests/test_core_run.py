@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -128,7 +129,7 @@ def test_render_prepare_files_stages_remote_pdb_ids_in_input_structures(
     requested_formats: list[str] = []
 
     def fake_get_or_download(self: object, pdb_id: str) -> Path:
-        requested_formats.append(getattr(self, "structure_format"))
+        requested_formats.append(cast(Any, self).structure_format)
         source = tmp_path / "cache" / f"{pdb_id.upper()}.src"
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_text("HEADER DOWNLOADED\n", encoding="utf-8")
