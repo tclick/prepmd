@@ -45,6 +45,8 @@ STATE_FILENAME = ".prepmd_state.json"
 STEP_STATUS_VALUES = {"pending", "running", "done", "failed"}
 _MAX_PDB_DOWNLOAD_WORKERS = 10
 _STRUCTURE_FORMAT_EXTENSION: dict[StructureFormat, str] = {"pdb": ".pdb", "mmcif": ".cif"}
+_LEGACY_POST_PROCESSING_PREFIX = Path("02_scripts/post_processing")
+_LEGACY_ANALYSIS_PREFIX = Path("02_scripts/analysis")
 
 
 @dataclass(slots=True, frozen=True)
@@ -519,11 +521,12 @@ def _render_subdirectory_readme(title: str) -> str:
 
 
 def _normalize_simulation_script_relative_path(relative_path: str) -> Path:
-    if relative_path.startswith("02_scripts/post_processing/"):
-        return Path(POST_PROCESSING_DIR) / Path(relative_path).relative_to("02_scripts/post_processing")
-    if relative_path.startswith("02_scripts/analysis/"):
-        return Path(ANALYSIS_DIR) / Path(relative_path).relative_to("02_scripts/analysis")
-    return Path(relative_path)
+    candidate = Path(relative_path)
+    if candidate.is_relative_to(_LEGACY_POST_PROCESSING_PREFIX):
+        return Path(POST_PROCESSING_DIR) / candidate.relative_to(_LEGACY_POST_PROCESSING_PREFIX)
+    if candidate.is_relative_to(_LEGACY_ANALYSIS_PREFIX):
+        return Path(ANALYSIS_DIR) / candidate.relative_to(_LEGACY_ANALYSIS_PREFIX)
+    return candidate
 
 
 def _stage_downloaded_structure(
