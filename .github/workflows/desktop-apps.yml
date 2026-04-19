@@ -1,0 +1,60 @@
+name: Build Desktop Apps
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "prepmd/**"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-apps.yml"
+
+jobs:
+  build-gui-app:
+    name: Build GUI app (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[gui]" pyinstaller
+
+      - name: Build app bundle (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --noconfirm --clean --windowed --name prepmd-gui prepmd/gui/main.py
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent prepmd-gui.app prepmd-gui-macos.zip
+
+      - name: Build app bundle (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --windowed --name prepmd-gui prepmd/gui/main.py
+          Compress-Archive -Path dist/prepmd-gui/* -DestinationPath dist/prepmd-gui-windows.zip -Force
+
+      - name: Upload macOS app artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepmd-gui-macos
+          path: dist/prepmd-gui-macos.zip
+
+      - name: Upload Windows app artifact
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepmd-gui-windows
+          path: dist/prepmd-gui-windows.zip

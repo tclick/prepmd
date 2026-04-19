@@ -122,3 +122,14 @@ anion = "Cl-"
 
 Containerized CLI/dev/CI/gui (best-effort) workflows are documented in
 [`docker/README.md`](docker/README.md).
+
+## Desktop app builds (macOS + Windows)
+
+This repository includes a GitHub Actions workflow at
+`.github/workflows/desktop-apps.yml` that builds the GUI app for:
+
+- macOS (`prepmd-gui.app` zipped as `prepmd-gui-macos.zip`)
+- Windows (`prepmd-gui.exe` bundle zipped as `prepmd-gui-windows.zip`)
+
+Run it from **Actions → Build Desktop Apps → Run workflow** and download the
+artifacts from the workflow run summary.
