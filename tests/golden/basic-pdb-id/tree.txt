@@ -2,6 +2,7 @@
 01_input/configs/
 01_input/parameters/
 01_input/structures/
+01_input/structures/1ABC.cif
 01_input/tleap_scripts/
 02_scripts/
 02_scripts/analysis/

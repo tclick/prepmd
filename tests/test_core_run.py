@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -122,3 +123,40 @@ def test_render_prepare_files_uses_variant_pdb_id_references_without_download(tm
     ).as_posix()
     assert "loadpdb pdb:1ABC" in payload[apo_path]
     assert "loadpdb pdb:2XYZ" in payload[holo_path]
+
+
+def test_render_prepare_files_stages_remote_pdb_ids_in_input_structures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    requested_formats: list[str] = []
+
+    def fake_get_or_download(self: object, pdb_id: str) -> Path:
+        requested_formats.append(cast(Any, self).structure_format)
+        source = tmp_path / "cache" / f"{pdb_id.upper()}.src"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("HEADER DOWNLOADED\n", encoding="utf-8")
+        return source
+
+    monkeypatch.setattr("prepmd.core.run.PDBHandler.get_or_download", fake_get_or_download)
+
+    config = ProjectConfig(
+        project_name="variant-id-demo",
+        output_dir=str(tmp_path),
+        protein=ProteinConfig(
+            variants=["apo", "holo"],
+            pdb_ids={"apo": "1abc", "holo": "2xyz"},
+        ),
+    )
+    plan = build_plan(config)
+    rendered = render_prepare_files(plan)
+    payload = {planned.path.as_posix(): planned.content for planned in rendered}
+    apo_path = (tmp_path / "variant-id-demo" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").as_posix()
+    holo_path = (
+        tmp_path / "variant-id-demo" / "05_simulations" / "holo" / "replica_001" / "amber_prepare.in"
+    ).as_posix()
+
+    assert requested_formats == ["mmcif", "mmcif"]
+    assert (tmp_path / "variant-id-demo" / "01_input" / "structures" / "1ABC.cif").exists()
+    assert (tmp_path / "variant-id-demo" / "01_input" / "structures" / "2XYZ.cif").exists()
+    assert "loadpdb 01_input/structures/1ABC.cif" in payload[apo_path]
+    assert "loadpdb 01_input/structures/2XYZ.cif" in payload[holo_path]
