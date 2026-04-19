@@ -78,6 +78,37 @@ def _write_minimal_pdb(path: Path, coords: list[tuple[float, float, float]]) -> 
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _write_minimal_mmcif(path: Path, coords: list[tuple[float, float, float]]) -> None:
+    """Write a minimal mmCIF file with ATOM records at the given coordinates."""
+    lines = [
+        "data_test",
+        "#",
+        "loop_",
+        "_atom_site.id",
+        "_atom_site.group_PDB",
+        "_atom_site.type_symbol",
+        "_atom_site.label_atom_id",
+        "_atom_site.label_alt_id",
+        "_atom_site.label_comp_id",
+        "_atom_site.label_asym_id",
+        "_atom_site.label_entity_id",
+        "_atom_site.label_seq_id",
+        "_atom_site.pdbx_PDB_ins_code",
+        "_atom_site.Cartn_x",
+        "_atom_site.Cartn_y",
+        "_atom_site.Cartn_z",
+        "_atom_site.occupancy",
+        "_atom_site.B_iso_or_equiv",
+        "_atom_site.auth_seq_id",
+        "_atom_site.auth_asym_id",
+        "_atom_site.pdbx_PDB_model_num",
+    ]
+    for i, (x, y, z) in enumerate(coords, start=1):
+        lines.append(f"{i} ATOM C CA . ALA A 1 {i} ? {x} {y} {z} 1.0 0.0 {i} A 1")
+    lines.append("#")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def test_protein_extents_from_pdb(tmp_path: Path) -> None:
     pdb = tmp_path / "test.pdb"
     _write_minimal_pdb(pdb, [(0.0, 0.0, 0.0), (10.0, 20.0, 30.0), (5.0, 10.0, 15.0)])
@@ -85,6 +116,24 @@ def test_protein_extents_from_pdb(tmp_path: Path) -> None:
     assert extents.x == pytest.approx(10.0)
     assert extents.y == pytest.approx(20.0)
     assert extents.z == pytest.approx(30.0)
+
+
+def test_protein_extents_from_mmcif(tmp_path: Path) -> None:
+    cif = tmp_path / "test.cif"
+    _write_minimal_mmcif(cif, [(0.0, 0.0, 0.0), (10.0, 20.0, 30.0), (5.0, 10.0, 15.0)])
+    extents = protein_extents_from_pdb(cif)
+    assert extents.x == pytest.approx(10.0)
+    assert extents.y == pytest.approx(20.0)
+    assert extents.z == pytest.approx(30.0)
+
+
+def test_protein_extents_from_mmcif_extension(tmp_path: Path) -> None:
+    mmcif = tmp_path / "test.mmcif"
+    _write_minimal_mmcif(mmcif, [(0.0, 0.0, 0.0), (8.0, 16.0, 24.0)])
+    extents = protein_extents_from_pdb(mmcif)
+    assert extents.x == pytest.approx(8.0)
+    assert extents.y == pytest.approx(16.0)
+    assert extents.z == pytest.approx(24.0)
 
 
 def test_protein_extents_from_pdb_no_atoms(tmp_path: Path) -> None:

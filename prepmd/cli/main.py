@@ -51,13 +51,18 @@ AUTO_BOX_OPTION = typer.Option(
         "Requires a local PDB file (--pdb-file or --apo-pdb/--holo-pdb)."
     ),
 )
-PDB_FILE_OPTION = typer.Option(None, help="Input PDB file path.")
+PDB_FILE_OPTION = typer.Option(None, help="Input PDB or mmCIF file path.")
 PDB_ID_OPTION = typer.Option(None, help="RCSB PDB ID to download (4 alphanumeric chars).")
-PDB_CACHE_DIR_OPTION = typer.Option(None, help="Cache directory for downloaded PDB files.")
+PDB_CACHE_DIR_OPTION = typer.Option(None, help="Cache directory for downloaded PDB/mmCIF files.")
 OFFLINE_OPTION = typer.Option(
     None,
     "--offline/--online",
     help="Use cached PDB files only and disable network fetching.",
+)
+STRUCTURE_FORMAT_OPTION = typer.Option(
+    "pdb",
+    "--structure-format",
+    help="Structure file format for remote downloads: pdb or mmcif.",
 )
 APO_PDB_OPTION = typer.Option(None, help="Apo input PDB file.")
 HOLO_PDB_OPTION = typer.Option(None, help="Holo input PDB file.")
@@ -218,6 +223,7 @@ def prepare(
     pdb_id: str | None = PDB_ID_OPTION,
     pdb_cache_dir: Path | None = PDB_CACHE_DIR_OPTION,
     offline: bool | None = OFFLINE_OPTION,
+    structure_format: str | None = STRUCTURE_FORMAT_OPTION,
     apo_pdb: Path | None = APO_PDB_OPTION,
     holo_pdb: Path | None = HOLO_PDB_OPTION,
     config: Path | None = CONFIG_OPTION,
@@ -300,6 +306,10 @@ def prepare(
             merged_config.protein.pdb_cache_dir = str(pdb_cache_dir)
         if offline is not None:
             merged_config.protein.offline = offline
+        if structure_format is not None:
+            if structure_format not in {"pdb", "mmcif"}:
+                raise PrepMDError(f"Invalid --structure-format '{structure_format}': must be 'pdb' or 'mmcif'.")
+            merged_config.protein.structure_format = cast(Literal["pdb", "mmcif"], structure_format)
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
             merged_config.protein.pdb_id = None

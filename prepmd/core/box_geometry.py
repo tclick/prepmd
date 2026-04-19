@@ -7,10 +7,13 @@ from math import sqrt
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBParser import PDBParser
 
 from prepmd.config.models import WaterBoxConfig, WaterBoxShape
 from prepmd.exceptions import InvalidBoxDimensionsError, PDBParseError
+
+_MMCIF_EXTENSIONS = frozenset({".cif", ".mmcif"})
 
 
 class BoxGeometry(ABC):
@@ -170,10 +173,13 @@ def protein_extents_from_pdb(pdb_path: Path | str) -> ProteinExtents:
     The extents are the span (max - min) along each Cartesian axis across all
     ATOM/HETATM records in the file.
 
+    Both legacy PDB (``.pdb``) and mmCIF/PDBx (``.cif``, ``.mmcif``) files are
+    supported; the parser is selected automatically based on the file extension.
+
     Parameters
     ----------
     pdb_path:
-        Path to the PDB file to parse.
+        Path to the PDB or mmCIF file to parse.
 
     Returns
     -------
@@ -186,7 +192,10 @@ def protein_extents_from_pdb(pdb_path: Path | str) -> ProteinExtents:
         When the file cannot be parsed or contains no atomic coordinates.
     """
     path = Path(pdb_path)
-    parser: Any = PDBParser(QUIET=True)
+    if path.suffix.lower() in _MMCIF_EXTENSIONS:
+        parser: Any = MMCIFParser(QUIET=True)
+    else:
+        parser = PDBParser(QUIET=True)
     try:
         structure: Any = parser.get_structure("protein", str(path))
     except Exception as exc:

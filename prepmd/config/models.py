@@ -36,6 +36,10 @@ class ProteinConfig(BaseModel):
         Names of protein variants to prepare (for example: ``apo`` and ``holo``).
     pdb_files : dict[str, str | None]
         Optional mapping of variant name to the variant-specific input PDB path.
+    structure_format : str
+        Structure file format for remote downloads: ``"pdb"`` (default) or
+        ``"mmcif"``.  Local files supplied via *pdb_file* or *pdb_files* are
+        auto-detected from their file extension and this field is ignored.
     """
 
     variants: list[str] = Field(default_factory=lambda: ["apo", "holo"])
@@ -44,6 +48,7 @@ class ProteinConfig(BaseModel):
     pdb_id: str | None = None
     pdb_cache_dir: str | None = None
     offline: bool = False
+    structure_format: Literal["pdb", "mmcif"] = "pdb"
 
     @model_validator(mode="after")
     def validate_pdb_inputs(self) -> "ProteinConfig":
