@@ -1,0 +1,12 @@
+source leaprc.protein.ff19sb
+source leaprc.water.opc
+# REMARK PREPMD BOX_SHAPE orthorhombic
+# REMARK PREPMD BOX_DIMENSIONS 12.000 14.000 16.000
+# REMARK PREPMD BOX_VOLUME 2688.000
+# REMARK PREPMD BOX_SURFACE_AREA 1168.000
+mol = loadpdb fixtures/input.pdb
+solvatebox mol OPCBOX 16.000
+setBox mol centers {12.000 14.000 16.000}
+# cutoff 5.000 spacing 0.500
+saveamberparm mol system.prmtop system.inpcrd
+quit

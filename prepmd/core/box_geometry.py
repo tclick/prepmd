@@ -167,7 +167,7 @@ class ProteinExtents(NamedTuple):
 def protein_extents_from_pdb(pdb_path: Path | str) -> ProteinExtents:
     """Parse *pdb_path* and return the bounding-box extents of the structure.
 
-    The extents are the span (max − min) along each Cartesian axis across all
+    The extents are the span (max - min) along each Cartesian axis across all
     ATOM/HETATM records in the file.
 
     Parameters

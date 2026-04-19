@@ -24,7 +24,7 @@ class WaterBoxShape(StrEnum):
     ORTHORHOMBIC = "orthorhombic"
 
 
-EnsembleType = Literal["NVT", "NPT", "NVE"]
+type EnsembleType = Literal["NVT", "NPT", "NVE"]
 
 
 class ProteinConfig(BaseModel):
@@ -43,6 +43,23 @@ class ProteinConfig(BaseModel):
     pdb_file: str | None = None
     pdb_id: str | None = None
     pdb_cache_dir: str | None = None
+    offline: bool = False
+
+    @model_validator(mode="after")
+    def validate_pdb_inputs(self) -> "ProteinConfig":
+        """Reject ambiguous PDB input at model-validation time.
+
+        Only the mutually exclusive "both set" case is checked here so that
+        partial construction (e.g. ``ProteinConfig()`` used as a default factory
+        or assembled incrementally via CLI merging) stays valid until the full
+        :class:`prepmd.config.validators.pipeline.ValidationPipeline` runs.
+        """
+        has_variant_local = any(path for path in self.pdb_files.values() if path)
+        has_local = self.pdb_file is not None or has_variant_local
+        has_remote = self.pdb_id is not None
+        if has_local and has_remote:
+            raise ValueError("Specify either a local PDB file or a PDB ID, not both.")
+        return self
 
 
 class SimulationConfig(BaseModel):

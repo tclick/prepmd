@@ -49,7 +49,7 @@ def test_water_box_auto_mode_no_pdb() -> None:
     widget._auto_box_check.setChecked(True)
     assert widget.is_auto_box()
     value = widget.get_value()
-    # No PDB set – falls back to WaterBoxConfig with auto_box_padding defaults
+    # No PDB set - falls back to WaterBoxConfig with auto_box_padding defaults
     assert value.shape == WaterBoxShape.CUBIC
     assert value.side_length is not None
 

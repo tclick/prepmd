@@ -1,0 +1,261 @@
+{
+  "$defs": {
+    "EngineConfig": {
+      "description": "Engine selection and options.\n\nParameters\n----------\nname : EngineName\n    Simulation engine name (Amber, NAMD, Gromacs, CHARMM, OpenMM).\nforce_field : str\n    Selected force field (default: ``ff19sb``).\nwater_model : str\n    Selected water model (default: ``OPC3``).\noptions : dict[str, str]\n    Additional engine-specific options.",
+      "properties": {
+        "force_field": {
+          "default": "ff19sb",
+          "title": "Force Field",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/EngineName",
+          "default": "amber"
+        },
+        "options": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Options",
+          "type": "object"
+        },
+        "water_model": {
+          "default": "OPC3",
+          "title": "Water Model",
+          "type": "string"
+        }
+      },
+      "title": "EngineConfig",
+      "type": "object"
+    },
+    "EngineName": {
+      "description": "Supported MD simulation engine identifiers.",
+      "enum": [
+        "amber",
+        "gromacs",
+        "namd",
+        "charmm",
+        "openmm"
+      ],
+      "title": "EngineName",
+      "type": "string"
+    },
+    "EnsembleType": {
+      "enum": [
+        "NVT",
+        "NPT",
+        "NVE"
+      ],
+      "type": "string"
+    },
+    "ProteinConfig": {
+      "description": "Protein-level simulation variants.\n\nParameters\n----------\nvariants : list[str]\n    Names of protein variants to prepare (for example: ``apo`` and ``holo``).\npdb_files : dict[str, str | None]\n    Optional mapping of variant name to the variant-specific input PDB path.",
+      "properties": {
+        "offline": {
+          "default": false,
+          "title": "Offline",
+          "type": "boolean"
+        },
+        "pdb_cache_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdb Cache Dir"
+        },
+        "pdb_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdb File"
+        },
+        "pdb_files": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Pdb Files",
+          "type": "object"
+        },
+        "pdb_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pdb Id"
+        },
+        "variants": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Variants",
+          "type": "array"
+        }
+      },
+      "title": "ProteinConfig",
+      "type": "object"
+    },
+    "SimulationConfig": {
+      "description": "Simulation execution options.\n\nParameters\n----------\nreplicas : int\n    Number of independent replicas for each variant.\ntemperature : float\n    Target temperature (K) used for NVT heating.\nensemble : EnsembleType\n    Production ensemble label (one of NVT, NPT, NVE).\nproduction_runs : int\n    Number of 100-ns production run segments to generate.\nproduction_run_length_ns : int\n    Duration in ns for each production run segment.",
+      "properties": {
+        "ensemble": {
+          "$ref": "#/$defs/EnsembleType",
+          "default": "NVT"
+        },
+        "production_run_length_ns": {
+          "default": 100,
+          "minimum": 1,
+          "title": "Production Run Length Ns",
+          "type": "integer"
+        },
+        "production_runs": {
+          "default": 3,
+          "minimum": 1,
+          "title": "Production Runs",
+          "type": "integer"
+        },
+        "replicas": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Replicas",
+          "type": "integer"
+        },
+        "temperature": {
+          "default": 300.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "title": "SimulationConfig",
+      "type": "object"
+    },
+    "WaterBoxConfig": {
+      "description": "Water-box geometry configuration.",
+      "properties": {
+        "auto_box_padding": {
+          "default": 10.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Auto Box Padding",
+          "type": "number"
+        },
+        "dimensions": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dimensions"
+        },
+        "edge_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Length"
+        },
+        "shape": {
+          "$ref": "#/$defs/WaterBoxShape",
+          "default": "cubic"
+        },
+        "side_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Side Length"
+        }
+      },
+      "title": "WaterBoxConfig",
+      "type": "object"
+    },
+    "WaterBoxShape": {
+      "description": "Supported water box geometries.",
+      "enum": [
+        "cubic",
+        "truncated_octahedron",
+        "orthorhombic"
+      ],
+      "title": "WaterBoxShape",
+      "type": "string"
+    }
+  },
+  "description": "Top-level project configuration.",
+  "properties": {
+    "engine": {
+      "$ref": "#/$defs/EngineConfig"
+    },
+    "output_dir": {
+      "default": ".",
+      "title": "Output Dir",
+      "type": "string"
+    },
+    "project_name": {
+      "title": "Project Name",
+      "type": "string"
+    },
+    "protein": {
+      "$ref": "#/$defs/ProteinConfig"
+    },
+    "simulation": {
+      "$ref": "#/$defs/SimulationConfig"
+    },
+    "water_box": {
+      "$ref": "#/$defs/WaterBoxConfig"
+    }
+  },
+  "required": [
+    "project_name"
+  ],
+  "title": "ProjectConfig",
+  "type": "object"
+}

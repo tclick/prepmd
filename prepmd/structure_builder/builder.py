@@ -141,7 +141,7 @@ class StructureBuilder(SimulationPlan):
         protocol = get_default_protocol(core_config)
 
         sims_base = self.root_dir / "05_simulations"
-        for variant in self.config.protein.variants:
+        for variant in sorted(self.config.protein.variants):
             variant_dir = sims_base / variant
             for replica_idx in range(1, self.config.simulation.replicas + 1):
                 replica_num = f"{replica_idx:03d}"
@@ -210,7 +210,7 @@ class StructureBuilder(SimulationPlan):
         if protein.pdb_id is None:
             return None
         cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
-        downloaded = PDBHandler(cache_dir=cache_dir).get_or_download(protein.pdb_id)
+        downloaded = PDBHandler(cache_dir=cache_dir, offline=protein.offline).get_or_download(protein.pdb_id)
         return str(downloaded)
 
     def _write_subdirectory_readme(self, directory: Path, title: str) -> None:

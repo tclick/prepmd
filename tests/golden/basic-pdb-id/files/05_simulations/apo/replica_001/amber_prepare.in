@@ -1,0 +1,11 @@
+source leaprc.protein.ff19sb
+source leaprc.water.opc3
+# REMARK PREPMD BOX_SHAPE cubic
+# REMARK PREPMD BOX_DIMENSIONS 10.000 10.000 10.000
+# REMARK PREPMD BOX_VOLUME 1000.000
+# REMARK PREPMD BOX_SURFACE_AREA 600.000
+mol = loadpdb fixtures/1ABC.pdb
+solvatebox mol OPC3BOX 10.000
+# cutoff 4.000 spacing 0.400
+saveamberparm mol system.prmtop system.inpcrd
+quit

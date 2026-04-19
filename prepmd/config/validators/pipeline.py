@@ -7,13 +7,15 @@ from prepmd.config.validators.ensemble import EnsembleValidator
 from prepmd.config.validators.pdb_input import PDBInputValidator
 from prepmd.config.validators.restraint import RestraintValidator
 from prepmd.config.validators.temperature import TemperatureValidator
+from prepmd.exceptions import ValidationError, ValidationErrorGroup
 
 
 class ValidationPipeline:
     """Run a sequence of validators against a project configuration.
 
-    Validators are executed in insertion order.  The first failure raises
-    immediately so that the caller receives one actionable error at a time.
+    Validators are executed in insertion order. Failures are collected and
+    returned as an :class:`ExceptionGroup` when more than one validation
+    error is found.
 
     Parameters
     ----------
@@ -36,6 +38,15 @@ class ValidationPipeline:
         )
 
     def validate(self, config: ProjectConfig) -> None:
-        """Run all validators in order; raise on the first failure."""
+        """Run all validators in order and raise a grouped error when needed."""
+        errors: list[ValidationError] = []
         for validator in self._validators:
-            validator.validate(config)
+            try:
+                validator.validate(config)
+            except ValidationError as exc:
+                errors.append(exc)
+        if not errors:
+            return
+        if len(errors) == 1:
+            raise errors[0]
+        raise ValidationErrorGroup("Configuration validation failed", errors)
