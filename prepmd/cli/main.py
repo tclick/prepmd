@@ -405,18 +405,19 @@ def prepare(
 
             extents = protein_extents_from_pdb(pdb_path)
             geometry = compute_box_from_protein(extents, merged_config.water_box)
-            if isinstance(geometry, CubicBox):
-                merged_config.water_box.side_length = geometry.side_length
-                merged_config.water_box.edge_length = None
-                merged_config.water_box.dimensions = None
-            elif isinstance(geometry, TruncatedOctahedronBox):
-                merged_config.water_box.edge_length = geometry.edge_length
-                merged_config.water_box.side_length = None
-                merged_config.water_box.dimensions = None
-            else:
-                merged_config.water_box.dimensions = geometry.dimensions
-                merged_config.water_box.side_length = None
-                merged_config.water_box.edge_length = None
+            match geometry:
+                case CubicBox():
+                    merged_config.water_box.side_length = geometry.side_length
+                    merged_config.water_box.edge_length = None
+                    merged_config.water_box.dimensions = None
+                case TruncatedOctahedronBox():
+                    merged_config.water_box.edge_length = geometry.edge_length
+                    merged_config.water_box.side_length = None
+                    merged_config.water_box.dimensions = None
+                case _:
+                    merged_config.water_box.dimensions = geometry.dimensions
+                    merged_config.water_box.side_length = None
+                    merged_config.water_box.edge_length = None
 
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
         with tempfile.TemporaryDirectory(prefix="prepmd-config-") as temp_dir:

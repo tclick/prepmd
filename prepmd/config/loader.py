@@ -21,12 +21,13 @@ class ConfigLoader:
 
     def load_project_config(self, path: str | Path) -> ProjectConfig:
         file_path = Path(path)
-        if file_path.suffix.lower() in {".yaml", ".yml"}:
-            data = self._yaml.load(file_path)
-        elif file_path.suffix.lower() == ".toml":
-            data = self._toml.load(file_path)
-        else:
-            raise ConfigurationError(f"Unsupported config format: {file_path.suffix}")
+        match file_path.suffix.lower():
+            case ".yaml" | ".yml":
+                data = self._yaml.load(file_path)
+            case ".toml":
+                data = self._toml.load(file_path)
+            case _:
+                raise ConfigurationError(f"Unsupported config format: {file_path.suffix}")
 
         try:
             config = ProjectConfig.model_validate(data)
