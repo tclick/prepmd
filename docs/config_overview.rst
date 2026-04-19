@@ -23,9 +23,10 @@ Protein
 * ``pdb_files`` (mapping from variant name to optional PDB path)
 * ``pdb_file`` (single local input PDB path)
 * ``pdb_id`` (RCSB PDB identifier)
+* ``pdb_ids`` (mapping from variant name to optional RCSB PDB ID)
 * ``pdb_cache_dir`` (optional cache directory for downloaded PDB files)
 
-Model-level validation enforces exactly one PDB source: local file(s) or remote ``pdb_id``.
+Model-level validation enforces exactly one PDB source: local file(s) or remote ``pdb_id``/``pdb_ids``.
 
 Simulation
 ----------

@@ -304,6 +304,7 @@ def _build_manifest(
                 plan.config.protein.pdb_file,
                 plan.config.protein.pdb_files,
                 plan.config.protein.pdb_id,
+                plan.config.protein.pdb_ids,
             ),
         },
         "config_resolution": {
@@ -323,9 +324,17 @@ def _pdb_input_payload(
     pdb_file: str | None,
     pdb_files: dict[str, str | None],
     pdb_id: str | None,
+    pdb_ids: dict[str, str | None],
 ) -> dict[str, object]:
     if pdb_id is not None:
         return {"source": "pdb_id", "pdb_id": pdb_id}
+
+    variant_ids: dict[str, str] = {}
+    for variant, variant_id in sorted(pdb_ids.items()):
+        if variant_id is not None:
+            variant_ids[variant] = variant_id.upper()
+    if variant_ids:
+        return {"source": "pdb_id", "variants": variant_ids}
 
     if pdb_file is not None:
         path = Path(pdb_file).expanduser()
@@ -431,6 +440,18 @@ def _schema_reference_payload() -> dict[str, object]:
 
 def _pdb_cache_payload(config: ProjectConfig) -> tuple[dict[str, object], Path | None]:
     pdb_id = config.protein.pdb_id
+    if pdb_id is None and any(value for value in config.protein.pdb_ids.values()):
+        cache_dir = (
+            Path(config.protein.pdb_cache_dir).expanduser()
+            if config.protein.pdb_cache_dir
+            else Path.home() / ".cache" / "prepmd" / "pdb"
+        )
+        return {
+            "status": "variant_specific",
+            "cache_dir": str(cache_dir),
+            "cache_path": None,
+            "pdb_id": None,
+        }, None
     if pdb_id is None:
         return {"status": "not_applicable", "cache_dir": None, "cache_path": None, "pdb_id": None}, None
     cache_dir = (

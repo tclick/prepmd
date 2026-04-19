@@ -19,8 +19,9 @@ class PDBInputValidator(BaseValidator):
     def validate(self, config: ProjectConfig) -> None:
         protein = config.protein
         has_variant_local = any(path for path in protein.pdb_files.values() if path)
+        has_variant_remote = any(pdb_id for pdb_id in protein.pdb_ids.values() if pdb_id)
         has_local = protein.pdb_file is not None or has_variant_local
-        has_remote = protein.pdb_id is not None
+        has_remote = protein.pdb_id is not None or has_variant_remote
         if has_local and has_remote:
             raise PDBMutualExclusivityError("Specify either a local PDB file or a PDB ID, not both.")
         if not has_local and not has_remote:
@@ -29,3 +30,6 @@ class PDBInputValidator(BaseValidator):
             )
         if protein.pdb_id is not None:
             validate_pdb_id(protein.pdb_id)
+        for variant_pdb_id in protein.pdb_ids.values():
+            if variant_pdb_id is not None:
+                validate_pdb_id(variant_pdb_id)

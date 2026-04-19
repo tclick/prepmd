@@ -746,6 +746,42 @@ def test_cli_prepare_offline_uses_cached_pdb_without_network(tmp_path: Path, mon
     assert (tmp_path / "prep-offline" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").exists()
 
 
+def test_cli_prepare_supports_apo_holo_pdb_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = CliRunner()
+    requested_ids: list[str] = []
+
+    def fake_get_or_download(self: object, pdb_id: str) -> Path:
+        requested_ids.append(pdb_id.upper())
+        resolved = tmp_path / "cache" / f"{pdb_id.upper()}.pdb"
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text("cached", encoding="utf-8")
+        return resolved
+
+    monkeypatch.setattr("prepmd.core.run.PDBHandler.get_or_download", fake_get_or_download)
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep-variant-ids",
+            "--output-dir",
+            str(tmp_path),
+            "--apo-pdb-id",
+            "1abc",
+            "--holo-pdb-id",
+            "2xyz",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert requested_ids == ["1ABC", "2XYZ"]
+    apo_prepare = tmp_path / "prep-variant-ids" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in"
+    holo_prepare = tmp_path / "prep-variant-ids" / "05_simulations" / "holo" / "replica_001" / "amber_prepare.in"
+    assert "loadpdb" in apo_prepare.read_text(encoding="utf-8")
+    assert "loadpdb" in holo_prepare.read_text(encoding="utf-8")
+
+
 def test_cli_setup_offline_fails_fast_on_cache_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     cache_dir = tmp_path / "cache"

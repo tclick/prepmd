@@ -378,15 +378,14 @@ def render_prepare_files(
 ) -> tuple[PlannedFile, ...]:
     """Render deterministic prepare-file contents for a plan."""
     engine = EngineFactory.create(plan.config.engine.name)
-    if offline:
-        shared_pdb_file = _resolve_shared_pdb_file(plan.config, offline=True)
-    elif download_remote_pdb:
-        shared_pdb_file = _resolve_shared_pdb_file(plan.config)
-    else:
-        shared_pdb_file = _resolve_plan_pdb_reference(plan.config)
+    variant_pdb_inputs = _resolve_variant_pdb_inputs(
+        plan.config,
+        download_remote_pdb=download_remote_pdb,
+        offline=offline,
+    )
     rendered: list[PlannedFile] = []
     for prepare_file in plan.prepare_files:
-        pdb_file = plan.config.protein.pdb_files.get(prepare_file.variant) or shared_pdb_file
+        pdb_file = variant_pdb_inputs.get(prepare_file.variant)
         contents = engine.prepare_from_pdb(pdb_file, plan.config)
         rendered.append(PlannedFile(prepare_file.path, contents))
     return tuple(rendered)
@@ -433,6 +432,33 @@ def _resolve_plan_pdb_reference(config: ProjectConfig) -> str | None:
     if protein.pdb_id is not None:
         return f"pdb:{protein.pdb_id.upper()}"
     return None
+
+
+def _resolve_variant_pdb_inputs(
+    config: ProjectConfig, *, download_remote_pdb: bool = True, offline: bool = False
+) -> dict[str, str | None]:
+    protein = config.protein
+    cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
+    handler = PDBHandler(
+        cache_dir=cache_dir,
+        offline=offline or protein.offline,
+        structure_format=protein.structure_format,
+    )
+    variant_inputs: dict[str, str | None] = {}
+    for variant in protein.variants:
+        local = protein.pdb_files.get(variant) or protein.pdb_file
+        if local is not None:
+            variant_inputs[variant] = local
+            continue
+        remote_id = protein.pdb_ids.get(variant) or protein.pdb_id
+        if remote_id is None:
+            variant_inputs[variant] = None
+            continue
+        if download_remote_pdb:
+            variant_inputs[variant] = str(handler.get_or_download(remote_id))
+            continue
+        variant_inputs[variant] = f"pdb:{remote_id.upper()}"
+    return variant_inputs
 
 
 def _render_subdirectory_readme(title: str) -> str:

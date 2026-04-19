@@ -11,8 +11,10 @@ def render_replica_readme(config: ProjectConfig, variant: str, replica_num: str,
     """Render per-replica README text."""
 
     pdb_input = config.protein.pdb_files.get(variant) or config.protein.pdb_file
-    if pdb_input is None and config.protein.pdb_id is not None:
-        pdb_input = f"PDB ID: {config.protein.pdb_id}"
+    if pdb_input is None:
+        variant_pdb_id = config.protein.pdb_ids.get(variant) or config.protein.pdb_id
+        if variant_pdb_id is not None:
+            pdb_input = f"PDB ID: {variant_pdb_id}"
     if pdb_input is None:
         pdb_input = "input.pdb"
     return REPLICA_README_TEMPLATE.format(

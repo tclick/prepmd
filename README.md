@@ -63,11 +63,13 @@ Download directly from the Protein Data Bank (cached locally):
 
 ```bash
 prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC
+prepmd prepare --project-name demo --output-dir . --apo-pdb-id 1ABC --holo-pdb-id 2XYZ
 prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC --pdb-cache-dir /path/to/cache
 prepmd prepare --project-name demo --output-dir . --pdb-id 1ABC --offline --pdb-cache-dir /path/to/cache
 ```
 
-`--pdb-file` and `--pdb-id` are mutually exclusive. Exactly one input method must be provided.
+`--pdb-file`/`--apo-pdb`/`--holo-pdb` and `--pdb-id`/`--apo-pdb-id`/`--holo-pdb-id` are mutually exclusive.
+Exactly one input method must be provided.
 Supported PDB IDs are 4 alphanumeric characters (for example `1ABC`).
 
 Default cache location is `~/.cache/prepmd/pdb`. Cached files are plain `*.pdb` files and can be cleaned manually:
@@ -93,6 +95,7 @@ TOML config (download by PDB ID):
 project_name = "demo"
 [protein]
 pdb_id = "1ABC"
+pdb_ids = { apo = "1ABC", holo = "2XYZ" }
 pdb_cache_dir = "/path/to/cache"
 offline = true
 

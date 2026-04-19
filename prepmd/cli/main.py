@@ -67,6 +67,8 @@ STRUCTURE_FORMAT_OPTION = typer.Option(
 )
 APO_PDB_OPTION = typer.Option(None, help="Apo input PDB file.")
 HOLO_PDB_OPTION = typer.Option(None, help="Holo input PDB file.")
+APO_PDB_ID_OPTION = typer.Option(None, help="Apo RCSB PDB ID to download (4 alphanumeric chars).")
+HOLO_PDB_ID_OPTION = typer.Option(None, help="Holo RCSB PDB ID to download (4 alphanumeric chars).")
 CONFIG_OPTION = typer.Option(
     None,
     "--config",
@@ -227,6 +229,8 @@ def prepare(
     structure_format: str | None = STRUCTURE_FORMAT_OPTION,
     apo_pdb: Path | None = APO_PDB_OPTION,
     holo_pdb: Path | None = HOLO_PDB_OPTION,
+    apo_pdb_id: str | None = APO_PDB_ID_OPTION,
+    holo_pdb_id: str | None = HOLO_PDB_ID_OPTION,
     config: Path | None = CONFIG_OPTION,
     dry_run: bool = SETUP_DRY_RUN_OPTION,
     plan_out: Path | None = SETUP_PLAN_OUT_OPTION,
@@ -259,7 +263,13 @@ def prepare(
                 water_box=WaterBoxConfig(),
             )
 
-        if pdb_id is not None and (pdb_file is not None or apo_pdb is not None or holo_pdb is not None):
+        if pdb_id is not None and (
+            pdb_file is not None
+            or apo_pdb is not None
+            or holo_pdb is not None
+            or apo_pdb_id is not None
+            or holo_pdb_id is not None
+        ):
             raise PDBMutualExclusivityError("Specify either a local PDB file or a PDB ID, not both.")
 
         if output_dir is not None:
@@ -299,10 +309,12 @@ def prepare(
             merged_config.protein.pdb_file = str(pdb_file)
             merged_config.protein.pdb_id = None
             merged_config.protein.pdb_files = {}
+            merged_config.protein.pdb_ids = {}
         if pdb_id is not None:
             merged_config.protein.pdb_id = pdb_id
             merged_config.protein.pdb_file = None
             merged_config.protein.pdb_files = {}
+            merged_config.protein.pdb_ids = {}
         if pdb_cache_dir is not None:
             merged_config.protein.pdb_cache_dir = str(pdb_cache_dir)
         if offline is not None:
@@ -312,15 +324,28 @@ def prepare(
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
             merged_config.protein.pdb_id = None
+            merged_config.protein.pdb_ids.pop("apo", None)
         if holo_pdb is not None:
             merged_config.protein.pdb_files["holo"] = str(holo_pdb)
             merged_config.protein.pdb_id = None
+            merged_config.protein.pdb_ids.pop("holo", None)
+        if apo_pdb_id is not None:
+            merged_config.protein.pdb_ids["apo"] = apo_pdb_id
+            merged_config.protein.pdb_id = None
+            merged_config.protein.pdb_file = None
+            merged_config.protein.pdb_files.pop("apo", None)
+        if holo_pdb_id is not None:
+            merged_config.protein.pdb_ids["holo"] = holo_pdb_id
+            merged_config.protein.pdb_id = None
+            merged_config.protein.pdb_file = None
+            merged_config.protein.pdb_files.pop("holo", None)
 
         # Guard "neither set" before model_validate so the error is consistent
         # with the pipeline validator message (not a raw pydantic exception).
         _has_variant_local = any(v for v in merged_config.protein.pdb_files.values() if v)
+        _has_variant_remote = any(v for v in merged_config.protein.pdb_ids.values() if v)
         _has_local = merged_config.protein.pdb_file is not None or _has_variant_local
-        _has_remote = merged_config.protein.pdb_id is not None
+        _has_remote = merged_config.protein.pdb_id is not None or _has_variant_remote
         if not _has_local and not _has_remote:
             raise PDBMutualExclusivityError(
                 "Specify exactly one PDB input method: local file(s), variant-specific files, or PDB ID."
