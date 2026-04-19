@@ -438,7 +438,8 @@ def _pdb_cache_payload(config: ProjectConfig) -> tuple[dict[str, object], Path |
         if config.protein.pdb_cache_dir
         else Path.home() / ".cache" / "prepmd" / "pdb"
     )
-    cache_path = cache_dir / f"{pdb_id.upper()}.pdb"
+    ext = ".cif" if config.protein.structure_format == "mmcif" else ".pdb"
+    cache_path = cache_dir / f"{pdb_id.upper()}{ext}"
     payload: dict[str, object] = {
         "status": "unknown",
         "cache_dir": str(cache_dir),

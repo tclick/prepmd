@@ -9,8 +9,12 @@ from Bio.PDB.PDBList import PDBList
 from loguru import logger
 
 from prepmd.exceptions import PDBDownloadError, PDBValidationError
+from prepmd.types import StructureFormat
 
 PDB_ID_PATTERN = re.compile(r"^[A-Za-z0-9]{4}$")
+
+_BIOPYTHON_FORMAT: dict[StructureFormat, str] = {"pdb": "pdb", "mmcif": "mmCif"}
+_CACHE_EXTENSION: dict[StructureFormat, str] = {"pdb": ".pdb", "mmcif": ".cif"}
 
 
 def validate_pdb_id(pdb_id: str) -> str:
@@ -24,7 +28,7 @@ def validate_pdb_id(pdb_id: str) -> str:
 
 
 class PDBHandler:
-    """Retrieve and cache PDB files from the Protein Data Bank."""
+    """Retrieve and cache PDB/mmCIF files from the Protein Data Bank."""
 
     def __init__(
         self,
@@ -33,17 +37,20 @@ class PDBHandler:
         backoff_seconds: float = 1.0,
         max_backoff_seconds: float = 30.0,
         offline: bool = False,
+        structure_format: StructureFormat = "pdb",
     ) -> None:
         self.cache_dir = cache_dir or Path.home() / ".cache" / "prepmd" / "pdb"
         self.retries = retries
         self.backoff_seconds = backoff_seconds
         self.max_backoff_seconds = max_backoff_seconds
         self.offline = offline
+        self.structure_format: StructureFormat = structure_format
 
     def cache_path(self, pdb_id: str) -> Path:
         """Return cache file path for a PDB ID."""
         normalized = validate_pdb_id(pdb_id)
-        return self.cache_dir / f"{normalized}.pdb"
+        ext = _CACHE_EXTENSION[self.structure_format]
+        return self.cache_dir / f"{normalized}{ext}"
 
     def get_or_download(self, pdb_id: str) -> Path:
         """Get a cached structure, downloading it when needed."""
@@ -72,7 +79,7 @@ class PDBHandler:
                         normalized,
                         obsolete=False,
                         pdir=str(self.cache_dir),
-                        file_format="pdb",
+                        file_format=_BIOPYTHON_FORMAT[self.structure_format],
                         overwrite=True,
                     ),
                 )
@@ -108,8 +115,9 @@ class PDBHandler:
                 target.unlink()
                 removed += 1
         else:
-            for path in self.cache_dir.glob("*.pdb"):
-                path.unlink()
-                removed += 1
+            for pattern in ("*.pdb", "*.cif"):
+                for path in self.cache_dir.glob(pattern):
+                    path.unlink()
+                    removed += 1
         logger.info(f"Removed {removed} cached PDB file(s) from {self.cache_dir}")
         return removed

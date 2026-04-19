@@ -121,3 +121,66 @@ def test_cleanup_cache(tmp_path: Path) -> None:
     assert handler.cleanup_cache("1abc") == 1
     assert (cache_dir / "1ABC.pdb").exists() is False
     assert handler.cleanup_cache() == 1
+
+
+# ---------------------------------------------------------------------------
+# mmCIF format support
+# ---------------------------------------------------------------------------
+
+
+def test_cache_path_pdb_format(tmp_path: Path) -> None:
+    handler = PDBHandler(cache_dir=tmp_path, structure_format="pdb")
+    assert handler.cache_path("1abc") == tmp_path / "1ABC.pdb"
+
+
+def test_cache_path_mmcif_format(tmp_path: Path) -> None:
+    handler = PDBHandler(cache_dir=tmp_path, structure_format="mmcif")
+    assert handler.cache_path("1abc") == tmp_path / "1ABC.cif"
+
+
+def test_get_or_download_mmcif_uses_cached_file(tmp_path: Path) -> None:
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    cached = cache_dir / "1ABC.cif"
+    cached.write_text("cached_mmcif", encoding="utf-8")
+    handler = PDBHandler(cache_dir=cache_dir, structure_format="mmcif")
+
+    assert handler.get_or_download("1abc") == cached
+
+
+def test_get_or_download_mmcif_uses_correct_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    cache_dir = tmp_path / "cache"
+    handler = PDBHandler(cache_dir=cache_dir, retries=1, backoff_seconds=0.0, structure_format="mmcif")
+    captured_formats: list[str] = []
+
+    def fake_retrieve(
+        self: Any,
+        pdb_code: str,
+        obsolete: bool,
+        pdir: str,
+        file_format: str,
+        overwrite: bool,
+    ) -> str:
+        captured_formats.append(file_format)
+        path = Path(pdir) / f"{pdb_code.lower()}.cif"
+        path.write_text("mmcif_content", encoding="utf-8")
+        return str(path)
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", fake_retrieve)
+
+    path = handler.get_or_download("1abc")
+
+    assert captured_formats == ["mmCif"]
+    assert path == cache_dir / "1ABC.cif"
+
+
+def test_cleanup_cache_removes_cif_files(tmp_path: Path) -> None:
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    (cache_dir / "1ABC.pdb").write_text("x", encoding="utf-8")
+    (cache_dir / "2DEF.cif").write_text("x", encoding="utf-8")
+    handler = PDBHandler(cache_dir=cache_dir)
+
+    removed = handler.cleanup_cache()
+    assert removed == 2
+    assert not any(cache_dir.iterdir())
