@@ -43,7 +43,7 @@ def _amber_scripts() -> dict[str, str]:
             parm ../system.prmtop
             trajin stripped_protein.nc
             autoimage
-            center :1-999 mass origin
+            center :* mass origin
             image origin center familiar
             trajout centered_protein.nc netcdf
             run
@@ -72,7 +72,7 @@ def _amber_scripts() -> dict[str, str]:
             """
             parm ../system.prmtop
             trajin ../05_post_processing/centered_protein.nc
-            rms first :1-999@CA out rmsd_ca.dat
+            rms first @CA out rmsd_ca.dat
             run
             """
         ),
@@ -80,7 +80,7 @@ def _amber_scripts() -> dict[str, str]:
             """
             parm ../system.prmtop
             trajin ../05_post_processing/centered_protein.nc
-            atomicfluct :1-999@CA byres out rmsf_ca_byres.dat
+            atomicfluct @CA byres out rmsf_ca_byres.dat
             run
             """
         ),
@@ -88,7 +88,7 @@ def _amber_scripts() -> dict[str, str]:
             """
             parm ../system.prmtop
             trajin ../05_post_processing/centered_protein.nc
-            radgyr :1-999 out rgyr.dat
+            radgyr :* out rgyr.dat
             run
             """
         ),
@@ -104,7 +104,7 @@ def _amber_scripts() -> dict[str, str]:
             """
             parm ../system.prmtop
             trajin ../05_post_processing/centered_protein.nc
-            surf :1-999 out sasa_protein.dat
+            surf :* out sasa_protein.dat
             run
             """
         ),
@@ -124,14 +124,23 @@ def _gromacs_scripts() -> dict[str, str]:
             """
             #!/usr/bin/env bash
             set -euo pipefail
-            printf "Protein\\nProtein\\n" | gmx trjconv -f protein_only.xtc -s ../topol.tpr -n ../index.ndx -center -pbc mol -ur compact -o centered_protein.xtc
+            printf '%s\\n%s\\n' Protein Protein | gmx trjconv \
+              -f protein_only.xtc \
+              -s ../topol.tpr \
+              -n ../index.ndx \
+              -center -pbc mol -ur compact \
+              -o centered_protein.xtc
             """
         ),
         "05_post_processing/03_merge_production.sh": _normalize_script(
             """
             #!/usr/bin/env bash
             set -euo pipefail
-            gmx trjcat -f ../04_production/run_001/md.xtc ../04_production/run_002/md.xtc ../04_production/run_003/md.xtc -o merged.xtc -settime
+            gmx trjcat -f \
+              ../04_production/run_001/md.xtc \
+              ../04_production/run_002/md.xtc \
+              ../04_production/run_003/md.xtc \
+              -o merged.xtc -settime
             """
         ),
         "05_post_processing/04_visualize_merged.vmd.tcl": _normalize_script(
@@ -145,7 +154,10 @@ def _gromacs_scripts() -> dict[str, str]:
             """
             #!/usr/bin/env bash
             set -euo pipefail
-            printf "Backbone\\nBackbone\\n" | gmx rms -s ../topol.tpr -f ../05_post_processing/centered_protein.xtc -o rmsd_backbone.xvg
+            printf '%s\\n%s\\n' Backbone Backbone | gmx rms \
+              -s ../topol.tpr \
+              -f ../05_post_processing/centered_protein.xtc \
+              -o rmsd_backbone.xvg
             """
         ),
         "06_analysis/02_rmsf.sh": _normalize_script(
@@ -166,7 +178,10 @@ def _gromacs_scripts() -> dict[str, str]:
             """
             #!/usr/bin/env bash
             set -euo pipefail
-            printf "Protein\\nProtein\\n" | gmx hbond -s ../topol.tpr -f ../05_post_processing/centered_protein.xtc -num hbond_count.xvg
+            printf '%s\\n%s\\n' Protein Protein | gmx hbond \
+              -s ../topol.tpr \
+              -f ../05_post_processing/centered_protein.xtc \
+              -num hbond_count.xvg
             """
         ),
         "06_analysis/05_sasa.sh": _normalize_script(
@@ -202,7 +217,10 @@ def _charmm_family_scripts() -> dict[str, str]:
             """
             #!/usr/bin/env bash
             set -euo pipefail
-            catdcd -o merged_protein.dcd ../04_production/run_001/production.dcd ../04_production/run_002/production.dcd ../04_production/run_003/production.dcd
+            catdcd -o merged_protein.dcd \
+              ../04_production/run_001/production.dcd \
+              ../04_production/run_002/production.dcd \
+              ../04_production/run_003/production.dcd
             """
         ),
         "05_post_processing/04_visualize_merged.vmd.tcl": _normalize_script(
@@ -336,8 +354,7 @@ def _openmm_scripts() -> dict[str, str]:
 
             traj = md.load("../05_post_processing/centered_protein.dcd", top="../system.pdb")
             ca = traj.topology.select("protein and name CA")
-            centered = traj.xyz[:, ca, :] - traj.xyz[:, ca, :].mean(axis=0)
-            rmsf = np.sqrt((centered**2).mean(axis=(0, 2)))
+            rmsf = md.rmsf(traj, traj, frame=0, atom_indices=ca)
             np.savetxt("rmsf_ca.dat", rmsf)
             """
         ),

@@ -1,7 +1,7 @@
 parm ../system.prmtop
 trajin stripped_protein.nc
 autoimage
-center :1-999 mass origin
+center :* mass origin
 image origin center familiar
 trajout centered_protein.nc netcdf
 run

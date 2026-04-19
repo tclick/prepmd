@@ -1,4 +1,4 @@
 parm ../system.prmtop
 trajin ../05_post_processing/centered_protein.nc
-surf :1-999 out sasa_protein.dat
+surf :* out sasa_protein.dat
 run

@@ -1,4 +1,4 @@
 parm ../system.prmtop
 trajin ../05_post_processing/centered_protein.nc
-rms first :1-999@CA out rmsd_ca.dat
+rms first @CA out rmsd_ca.dat
 run
