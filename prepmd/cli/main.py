@@ -163,21 +163,20 @@ def prepare(
             pdb_path = _resolve_pdb_path(merged_config)
             if pdb_path is None:
                 raise PrepMDError("--auto-box requires a local PDB file (--pdb-file or --apo-pdb/--holo-pdb).")
-            from prepmd.core.box_geometry import compute_box_from_protein, protein_extents_from_pdb
+            from prepmd.core.box_geometry import (
+                CubicBox,
+                TruncatedOctahedronBox,
+                compute_box_from_protein,
+                protein_extents_from_pdb,
+            )
 
             extents = protein_extents_from_pdb(pdb_path)
             geometry = compute_box_from_protein(extents, merged_config.water_box)
-            if merged_config.water_box.shape == WaterBoxShape.CUBIC:
-                from prepmd.core.box_geometry import CubicBox
-
-                assert isinstance(geometry, CubicBox)
+            if isinstance(geometry, CubicBox):
                 merged_config.water_box.side_length = geometry.side_length
                 merged_config.water_box.edge_length = None
                 merged_config.water_box.dimensions = None
-            elif merged_config.water_box.shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
-                from prepmd.core.box_geometry import TruncatedOctahedronBox
-
-                assert isinstance(geometry, TruncatedOctahedronBox)
+            elif isinstance(geometry, TruncatedOctahedronBox):
                 merged_config.water_box.edge_length = geometry.edge_length
                 merged_config.water_box.side_length = None
                 merged_config.water_box.dimensions = None

@@ -189,8 +189,9 @@ class WaterBoxConfigWidget(QGroupBox):
                 if shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
                     from prepmd.core.box_geometry import TruncatedOctahedronBox
 
-                    assert isinstance(geometry, TruncatedOctahedronBox)
-                    return WaterBoxConfig(shape=shape, edge_length=geometry.edge_length, auto_box_padding=padding)
+                    if isinstance(geometry, TruncatedOctahedronBox):
+                        return WaterBoxConfig(shape=shape, edge_length=geometry.edge_length, auto_box_padding=padding)
+                    return WaterBoxConfig(shape=shape, auto_box_padding=padding)
                 return WaterBoxConfig(shape=shape, dimensions=dims, auto_box_padding=padding)
             # no PDB selected yet; fall back to padding-only defaults
             return WaterBoxConfig(shape=shape, auto_box_padding=padding)
