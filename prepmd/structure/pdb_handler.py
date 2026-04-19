@@ -3,16 +3,15 @@
 import re
 import time
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 from Bio.PDB.PDBList import PDBList
 from loguru import logger
 
 from prepmd.exceptions import PDBDownloadError, PDBValidationError
+from prepmd.types import StructureFormat
 
 PDB_ID_PATTERN = re.compile(r"^[A-Za-z0-9]{4}$")
-
-StructureFormat = Literal["pdb", "mmcif"]
 
 _BIOPYTHON_FORMAT: dict[StructureFormat, str] = {"pdb": "pdb", "mmcif": "mmCif"}
 _CACHE_EXTENSION: dict[StructureFormat, str] = {"pdb": ".pdb", "mmcif": ".cif"}

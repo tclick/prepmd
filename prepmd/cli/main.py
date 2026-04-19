@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal, cast, get_args
 
 import typer
 import yaml
@@ -24,6 +24,7 @@ from prepmd.config.models import (
 )
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
+from prepmd.types import StructureFormat
 from prepmd.utils.logging import configure_logging
 
 LICENSE_TEXT = "GNU GPL-3.0-or-later"
@@ -307,9 +308,12 @@ def prepare(
         if offline is not None:
             merged_config.protein.offline = offline
         if structure_format is not None:
-            if structure_format not in {"pdb", "mmcif"}:
-                raise PrepMDError(f"Invalid --structure-format '{structure_format}': must be 'pdb' or 'mmcif'.")
-            merged_config.protein.structure_format = cast(Literal["pdb", "mmcif"], structure_format)
+            valid_formats = get_args(StructureFormat)
+            if structure_format not in valid_formats:
+                raise PrepMDError(
+                    f"Invalid --structure-format '{structure_format}': must be one of {', '.join(valid_formats)}."
+                )
+            merged_config.protein.structure_format = cast(StructureFormat, structure_format)
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
             merged_config.protein.pdb_id = None

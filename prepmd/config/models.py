@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from prepmd.types import StructureFormat
+
 
 class EngineName(StrEnum):
     """Supported MD simulation engine identifiers."""
@@ -48,7 +50,7 @@ class ProteinConfig(BaseModel):
     pdb_id: str | None = None
     pdb_cache_dir: str | None = None
     offline: bool = False
-    structure_format: Literal["pdb", "mmcif"] = "pdb"
+    structure_format: StructureFormat = "pdb"
 
     @model_validator(mode="after")
     def validate_pdb_inputs(self) -> "ProteinConfig":
