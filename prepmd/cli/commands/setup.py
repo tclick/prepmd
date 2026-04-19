@@ -9,6 +9,7 @@ import platform
 import shutil
 import sys
 import tomllib
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from importlib.resources import files
 from pathlib import Path
@@ -276,14 +277,18 @@ def _build_manifest(
     plan_sha256: str,
 ) -> dict[str, object]:
     output_dir = Path(plan.config.output_dir).expanduser().resolve()
-    files = [
-        {
+
+    def _hash_file(path: Path) -> dict[str, object] | None:
+        if not path.exists():
+            return None
+        return {
             "path": _relative_path(path, output_dir),
             "sha256": _sha256_bytes(path.read_bytes()),
         }
-        for path in generated_files
-        if path.exists()
-    ]
+
+    with ThreadPoolExecutor() as executor:
+        hashed = list(executor.map(_hash_file, generated_files))
+    files: list[dict[str, object]] = [entry for entry in hashed if entry is not None]
     files.sort(key=lambda item: str(item["path"]))
     return {
         "manifest_version": 1,

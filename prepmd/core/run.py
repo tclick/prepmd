@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import cached_property
@@ -38,6 +40,7 @@ BACKUP_DIR = "07_backup"
 STATE_VERSION = 1
 STATE_FILENAME = ".prepmd_state.json"
 STEP_STATUS_VALUES = {"pending", "running", "done", "failed"}
+_MAX_PDB_DOWNLOAD_WORKERS = 10
 
 
 @dataclass(slots=True, frozen=True)
@@ -95,6 +98,7 @@ class SetupStateStore:
     def __init__(self, state_path: Path, payload: dict[str, object]) -> None:
         self._state_path = state_path
         self._payload = payload
+        self._lock = threading.Lock()  # guards all reads and writes of _payload["steps"]
 
     @classmethod
     def create(
@@ -146,36 +150,40 @@ class SetupStateStore:
         self.save_best_effort()
 
     def is_done(self, step_id: str) -> bool:
-        return self._steps().get(step_id, {}).get("status") == "done"
+        with self._lock:
+            return self._steps().get(step_id, {}).get("status") == "done"
 
     def mark_running(self, step_id: str) -> None:
-        now = _utc_now_rfc3339()
-        step = self._steps().setdefault(step_id, {})
-        step["status"] = "running"
-        step["started_at_utc"] = now
-        step["finished_at_utc"] = None
-        step.pop("details", None)
-        self.save_best_effort()
+        with self._lock:
+            now = _utc_now_rfc3339()
+            step = self._steps().setdefault(step_id, {})
+            step["status"] = "running"
+            step["started_at_utc"] = now
+            step["finished_at_utc"] = None
+            step.pop("details", None)
+            self.save_best_effort()
 
     def mark_done(self, step_id: str) -> None:
-        now = _utc_now_rfc3339()
-        step = self._steps().setdefault(step_id, {})
-        step["status"] = "done"
-        if step.get("started_at_utc") is None:
-            step["started_at_utc"] = now
-        step["finished_at_utc"] = now
-        step.pop("details", None)
-        self.save_best_effort()
+        with self._lock:
+            now = _utc_now_rfc3339()
+            step = self._steps().setdefault(step_id, {})
+            step["status"] = "done"
+            if step.get("started_at_utc") is None:
+                step["started_at_utc"] = now
+            step["finished_at_utc"] = now
+            step.pop("details", None)
+            self.save_best_effort()
 
     def mark_failed(self, step_id: str, error: BaseException) -> None:
-        now = _utc_now_rfc3339()
-        step = self._steps().setdefault(step_id, {})
-        step["status"] = "failed"
-        if step.get("started_at_utc") is None:
-            step["started_at_utc"] = now
-        step["finished_at_utc"] = now
-        step["details"] = {"error": str(error)}
-        self.save_best_effort()
+        with self._lock:
+            now = _utc_now_rfc3339()
+            step = self._steps().setdefault(step_id, {})
+            step["status"] = "failed"
+            if step.get("started_at_utc") is None:
+                step["started_at_utc"] = now
+            step["finished_at_utc"] = now
+            step["details"] = {"error": str(error)}
+            self.save_best_effort()
 
     def save_best_effort(self) -> None:
         try:
@@ -280,11 +288,14 @@ def apply_plan(
     operations = _plan_operations(plan, offline=offline)
     current = 0
     total = len(operations)
+    _advance_lock = threading.Lock()
 
     def advance(operation: PlannedOperation) -> None:
         nonlocal current
-        current += 1
-        active_reporter.on_step(current, total, operation.message)
+        with _advance_lock:
+            current += 1
+            step_num = current
+        active_reporter.on_step(step_num, total, operation.message)
         if resume and state_store is not None and state_store.is_done(operation.step_id):
             logger.bind(event="step_transition", step_id=operation.step_id, status="done", skipped=True).info(
                 operation.message
@@ -327,12 +338,37 @@ def apply_plan(
             )
             raise SetupApplyError(f"{operation.message}: {exc}") from exc
 
+    mkdir_ops = [op for op in operations if op.step_id.startswith("mkdir::")]
+    parallel_ops = [op for op in operations if not op.step_id.startswith("mkdir::")]
+
     try:
         active_reporter.on_start(total)
         if state_store is not None:
             state_store.prepare_steps(tuple(operation.step_id for operation in operations))
-        for operation in operations:
+
+        # Phase 1: create directories serially — fast and order-independent with parents=True
+        for operation in mkdir_ops:
             advance(operation)
+
+        # Phase 2: write static and prepare files concurrently — each write is independent
+        if parallel_ops:
+            first_exc: SetupApplyError | None = None
+            with ThreadPoolExecutor() as executor:
+                futures = [executor.submit(advance, op) for op in parallel_ops]
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except SetupApplyError as exc:
+                        if first_exc is None:
+                            first_exc = exc
+                            # Cancel pending futures that have not started yet;
+                            # already-running workers will finish naturally.
+                            for f in futures:
+                                f.cancel()
+                    except CancelledError:
+                        pass  # pending future cancelled; step stays pending for resume
+            if first_exc is not None:
+                raise first_exc
     except Exception as exc:
         active_reporter.on_error(exc)
         raise StructureBuildError(str(exc)) from exc
@@ -389,11 +425,14 @@ def render_prepare_files(
         download_remote_pdb=download_remote_pdb,
         offline=offline,
     )
-    rendered: list[PlannedFile] = []
-    for prepare_file in plan.prepare_files:
+
+    def _render_one(prepare_file: PlannedPrepareFile) -> PlannedFile:
         pdb_file = variant_pdb_inputs.get(prepare_file.variant)
         contents = engine.prepare_from_pdb(pdb_file, plan.config)
-        rendered.append(PlannedFile(prepare_file.path, contents))
+        return PlannedFile(prepare_file.path, contents)
+
+    with ThreadPoolExecutor() as executor:
+        rendered = list(executor.map(_render_one, plan.prepare_files))
     return tuple(rendered)
 
 
@@ -427,6 +466,8 @@ def _resolve_variant_pdb_inputs(
         structure_format=protein.structure_format,
     )
     variant_inputs: dict[str, str | None] = {}
+    to_download: list[tuple[str, str]] = []
+
     for variant in protein.variants:
         local = protein.pdb_files.get(variant) or protein.pdb_file
         if local is not None:
@@ -437,9 +478,20 @@ def _resolve_variant_pdb_inputs(
             variant_inputs[variant] = None
             continue
         if download_remote_pdb:
-            variant_inputs[variant] = str(handler.get_or_download(remote_id))
-            continue
-        variant_inputs[variant] = f"pdb:{remote_id.upper()}"
+            to_download.append((variant, remote_id))
+        else:
+            variant_inputs[variant] = f"pdb:{remote_id.upper()}"
+
+    if to_download:
+
+        def _download(item: tuple[str, str]) -> tuple[str, str]:
+            variant, remote_id = item
+            return variant, str(handler.get_or_download(remote_id))
+
+        with ThreadPoolExecutor(max_workers=min(len(to_download), _MAX_PDB_DOWNLOAD_WORKERS)) as executor:
+            for variant, path in executor.map(_download, to_download):
+                variant_inputs[variant] = path
+
     return variant_inputs
 
 
