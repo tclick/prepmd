@@ -1,0 +1,4 @@
+parm ../system.prmtop
+trajin ../05_post_processing/centered_protein.nc
+atomicfluct :1-999@CA byres out rmsf_ca_byres.dat
+run

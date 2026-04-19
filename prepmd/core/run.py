@@ -24,6 +24,7 @@ from prepmd.models.results import RunResult, StepResult
 from prepmd.structure.pdb_handler import PDBHandler
 from prepmd.templates.protocol_templates import render_protocol_overview
 from prepmd.templates.readme_templates import render_replica_readme
+from prepmd.templates.workflow_script_templates import render_replica_workflow_scripts
 
 TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("01_input", ("structures", "parameters", "configs", "tleap_scripts")),
@@ -31,7 +32,9 @@ TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("03_logs", ("simulation", "analysis", "errors")),
     ("04_analysis_templates", ("trajectory_processing", "all_atom", "fluctuation_analysis", "summary")),
 )
-ANALYSIS_DIRS: tuple[str, ...] = ("trajectory", "all_atom", "fluctuation")
+POST_PROCESSING_DIR = "05_post_processing"
+ANALYSIS_DIR = "06_analysis"
+BACKUP_DIR = "07_backup"
 STATE_VERSION = 1
 STATE_FILENAME = ".prepmd_state.json"
 STEP_STATUS_VALUES = {"pending", "running", "done", "failed"}
@@ -231,11 +234,9 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                 directories.append(replica_dir)
 
                 _plan_protocol_directories(replica_dir, protocol, directories, files)
-                analysis_base = replica_dir / "05_analysis"
-                directories.append(analysis_base)
-                for analysis_type in ANALYSIS_DIRS:
-                    directories.append(analysis_base / analysis_type)
-                directories.append(replica_dir / "06_backup")
+                post_processing_dir = replica_dir / POST_PROCESSING_DIR
+                analysis_dir = replica_dir / ANALYSIS_DIR
+                directories.extend((post_processing_dir, analysis_dir, replica_dir / BACKUP_DIR))
 
                 files.append(
                     PlannedFile(
@@ -244,6 +245,11 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                     )
                 )
                 files.append(PlannedFile(replica_dir / "PROTOCOL.md", render_protocol_overview(config)))
+                workflow_scripts = render_replica_workflow_scripts(engine.name)
+                files.extend(
+                    PlannedFile(path=replica_dir / relative_path, content=content)
+                    for relative_path, content in workflow_scripts.items()
+                )
                 prepare_files.append(PlannedPrepareFile(replica_dir / f"{engine.name}_prepare.in", variant=variant))
 
         sorted_directories = tuple(sorted(set(directories)))
