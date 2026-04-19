@@ -1,4 +1,0 @@
-parm ../system.prmtop
-trajin ../post_processing/centered_protein.nc
-surf :* out sasa_protein.dat
-run
