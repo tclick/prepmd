@@ -36,6 +36,7 @@ TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 POST_PROCESSING_DIR = "05_post_processing"
 ANALYSIS_DIR = "06_analysis"
+SIMULATION_SCRIPTS_DIR = Path("02_scripts") / "simulation"
 BACKUP_DIR = "07_backup"
 STATE_VERSION = 1
 STATE_FILENAME = ".prepmd_state.json"
@@ -231,6 +232,12 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
             for child in children:
                 directories.append(base / child)
 
+        workflow_scripts = render_replica_workflow_scripts(engine.name)
+        files.extend(
+            PlannedFile(path=root_dir / SIMULATION_SCRIPTS_DIR / relative_path, content=content)
+            for relative_path, content in workflow_scripts.items()
+        )
+
         sims_base = root_dir / "05_simulations"
         directories.append(sims_base)
         for variant in sorted(config.protein.variants):
@@ -253,11 +260,6 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                     )
                 )
                 files.append(PlannedFile(replica_dir / "PROTOCOL.md", render_protocol_overview(config)))
-                workflow_scripts = render_replica_workflow_scripts(engine.name)
-                files.extend(
-                    PlannedFile(path=replica_dir / relative_path, content=content)
-                    for relative_path, content in workflow_scripts.items()
-                )
                 prepare_files.append(PlannedPrepareFile(replica_dir / f"{engine.name}_prepare.in", variant=variant))
 
         sorted_directories = tuple(sorted(set(directories)))
