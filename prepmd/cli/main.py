@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Literal, cast, get_args
+from typing import Literal, cast
 
 import typer
 import yaml
@@ -308,11 +308,6 @@ def prepare(
         if offline is not None:
             merged_config.protein.offline = offline
         if structure_format is not None:
-            valid_formats = get_args(StructureFormat)
-            if structure_format not in valid_formats:
-                raise PrepMDError(
-                    f"Invalid --structure-format '{structure_format}': must be one of {', '.join(valid_formats)}."
-                )
             merged_config.protein.structure_format = cast(StructureFormat, structure_format)
         if apo_pdb is not None:
             merged_config.protein.pdb_files["apo"] = str(apo_pdb)
