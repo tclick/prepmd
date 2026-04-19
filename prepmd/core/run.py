@@ -445,7 +445,7 @@ def _resolve_variant_pdb_inputs(
         structure_format=protein.structure_format,
     )
     variant_inputs: dict[str, str | None] = {}
-    for variant in sorted(protein.variants):
+    for variant in protein.variants:
         local = protein.pdb_files.get(variant) or protein.pdb_file
         if local is not None:
             variant_inputs[variant] = local
