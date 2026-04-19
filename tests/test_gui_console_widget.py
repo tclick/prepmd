@@ -82,3 +82,39 @@ def test_console_widget_backend_lists_grouped_validation_errors(tmp_path: Path) 
     assert "Validation errors" in text
     assert "temperature must be between 0 and 1000 K" in text
     assert "replicas must be >= 1" in text
+
+
+def test_console_widget_run_prepare_cli_supports_variant_pdb_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    qt_widgets = pytest.importorskip("PyQt6.QtWidgets", exc_type=ImportError)
+    from prepmd.gui import ConsoleWidget
+
+    app = qt_widgets.QApplication.instance()
+    if app is None:
+        app = qt_widgets.QApplication([])
+
+    captured: list[str] = []
+    widget = ConsoleWidget()
+
+    def fake_run_cli(arguments: list[str]) -> None:
+        captured[:] = arguments
+
+    monkeypatch.setattr(widget, "run_cli", fake_run_cli)
+
+    widget.run_prepare_cli(
+        project_name="gui-variant-ids",
+        output_dir="/tmp/output",
+        apo_pdb_id="1abc",
+        holo_pdb_id="2xyz",
+    )
+
+    assert captured == [
+        "prepare",
+        "--project-name",
+        "gui-variant-ids",
+        "--output-dir",
+        "/tmp/output",
+        "--apo-pdb-id",
+        "1abc",
+        "--holo-pdb-id",
+        "2xyz",
+    ]
