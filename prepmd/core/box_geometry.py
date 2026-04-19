@@ -5,9 +5,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from math import sqrt
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
-from Bio.PDB import PDBParser
+from Bio.PDB.PDBParser import PDBParser
 
 from prepmd.config.models import WaterBoxConfig, WaterBoxShape
 from prepmd.exceptions import InvalidBoxDimensionsError, PDBParseError
@@ -186,19 +186,26 @@ def protein_extents_from_pdb(pdb_path: Path | str) -> ProteinExtents:
         When the file cannot be parsed or contains no atomic coordinates.
     """
     path = Path(pdb_path)
-    parser = PDBParser(QUIET=True)
+    parser: Any = PDBParser(QUIET=True)
     try:
-        structure = parser.get_structure("protein", str(path))
+        structure: Any = parser.get_structure("protein", str(path))
     except Exception as exc:
         raise PDBParseError(f"Failed to parse PDB file {path}: {exc}") from exc
 
-    coords = [atom.coord for atom in structure.get_atoms()]
-    if not coords:
+    if structure is None:
+        raise PDBParseError(f"Failed to parse PDB file {path}: parser returned None")
+
+    xs: list[float] = []
+    ys: list[float] = []
+    zs: list[float] = []
+    for atom in structure.get_atoms():
+        xs.append(float(atom.coord[0]))
+        ys.append(float(atom.coord[1]))
+        zs.append(float(atom.coord[2]))
+
+    if not xs:
         raise PDBParseError(f"No atomic coordinates found in PDB file: {path}")
 
-    xs = [c[0] for c in coords]
-    ys = [c[1] for c in coords]
-    zs = [c[2] for c in coords]
     return ProteinExtents(
         x=float(max(xs) - min(xs)),
         y=float(max(ys) - min(ys)),
