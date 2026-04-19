@@ -8,6 +8,9 @@ on:
       - "pyproject.toml"
       - ".github/workflows/desktop-apps.yml"
 
+permissions:
+  contents: read
+
 jobs:
   build-gui-app:
     name: Build GUI app (${{ matrix.os }})
