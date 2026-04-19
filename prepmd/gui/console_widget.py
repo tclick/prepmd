@@ -44,6 +44,36 @@ class ConsoleWidget(QPlainTextEdit):
         self.appendPlainText(f"$ {sys.executable} {' '.join(command_arguments)}")
         self._process.start(sys.executable, command_arguments)  # pyright: ignore[reportUnknownMemberType]
 
+    def run_prepare_cli(
+        self,
+        *,
+        project_name: str,
+        output_dir: str | None = None,
+        pdb_file: str | None = None,
+        pdb_id: str | None = None,
+        apo_pdb: str | None = None,
+        holo_pdb: str | None = None,
+        apo_pdb_id: str | None = None,
+        holo_pdb_id: str | None = None,
+    ) -> None:
+        """Run ``prepmd prepare`` via CLI subprocess mode."""
+        arguments: list[str] = ["prepare", "--project-name", project_name]
+        if output_dir is not None:
+            arguments.extend(["--output-dir", output_dir])
+        if pdb_file is not None:
+            arguments.extend(["--pdb-file", pdb_file])
+        if pdb_id is not None:
+            arguments.extend(["--pdb-id", pdb_id])
+        if apo_pdb is not None:
+            arguments.extend(["--apo-pdb", apo_pdb])
+        if holo_pdb is not None:
+            arguments.extend(["--holo-pdb", holo_pdb])
+        if apo_pdb_id is not None:
+            arguments.extend(["--apo-pdb-id", apo_pdb_id])
+        if holo_pdb_id is not None:
+            arguments.extend(["--holo-pdb-id", holo_pdb_id])
+        self.run_cli(arguments)
+
     def set_progress_callback(self, callback: ProgressCallback | None) -> None:
         """Set callback used to update a GUI progress bar."""
         self._progress_callback = callback
