@@ -59,3 +59,7 @@ class InvalidBoxDimensionsError(BoxGeometryError):
 
 class BoxShapeNotSupportedError(BoxGeometryError):
     """Raised when an engine does not support the requested box shape."""
+
+
+class PDBParseError(PrepMDError):
+    """Raised when a PDB file cannot be parsed or contains no atoms."""

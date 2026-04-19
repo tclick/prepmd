@@ -43,6 +43,14 @@ BOX_SIDE_LENGTH_OPTION = typer.Option(None, min=0.1, help="Water box side length
 BOX_EDGE_LENGTH_OPTION = typer.Option(None, min=0.1, help="Water box edge length in Å (truncated octahedron).")
 BOX_DIMENSIONS_OPTION = typer.Option(None, help="Water box dimensions X Y Z in Å (orthorhombic).")
 AUTO_BOX_PADDING_OPTION = typer.Option(None, min=0.1, help="Automatic box padding in Å (default 10.0).")
+AUTO_BOX_OPTION = typer.Option(
+    False,
+    "--auto-box/--no-auto-box",
+    help=(
+        "Auto-size the water box from the protein bounding box plus --auto-box-padding. "
+        "Requires a local PDB file (--pdb-file or --apo-pdb/--holo-pdb)."
+    ),
+)
 PDB_FILE_OPTION = typer.Option(None, help="Input PDB file path.")
 PDB_ID_OPTION = typer.Option(None, help="RCSB PDB ID to download (4 alphanumeric chars).")
 PDB_CACHE_DIR_OPTION = typer.Option(None, help="Cache directory for downloaded PDB files.")
@@ -205,6 +213,7 @@ def prepare(
     box_edge_length: float | None = BOX_EDGE_LENGTH_OPTION,
     box_dimensions: tuple[float, float, float] | None = BOX_DIMENSIONS_OPTION,
     auto_box_padding: float | None = AUTO_BOX_PADDING_OPTION,
+    auto_box: bool = AUTO_BOX_OPTION,
     pdb_file: Path | None = PDB_FILE_OPTION,
     pdb_id: str | None = PDB_ID_OPTION,
     pdb_cache_dir: Path | None = PDB_CACHE_DIR_OPTION,
@@ -308,6 +317,32 @@ def prepare(
                 "Specify exactly one PDB input method: local file(s), variant-specific files, or PDB ID."
             )
 
+        if auto_box:
+            pdb_path = _resolve_pdb_path(merged_config)
+            if pdb_path is None:
+                raise PrepMDError("--auto-box requires a local PDB file (--pdb-file or --apo-pdb/--holo-pdb).")
+            from prepmd.core.box_geometry import (
+                CubicBox,
+                TruncatedOctahedronBox,
+                compute_box_from_protein,
+                protein_extents_from_pdb,
+            )
+
+            extents = protein_extents_from_pdb(pdb_path)
+            geometry = compute_box_from_protein(extents, merged_config.water_box)
+            if isinstance(geometry, CubicBox):
+                merged_config.water_box.side_length = geometry.side_length
+                merged_config.water_box.edge_length = None
+                merged_config.water_box.dimensions = None
+            elif isinstance(geometry, TruncatedOctahedronBox):
+                merged_config.water_box.edge_length = geometry.edge_length
+                merged_config.water_box.side_length = None
+                merged_config.water_box.dimensions = None
+            else:
+                merged_config.water_box.dimensions = geometry.dimensions
+                merged_config.water_box.side_length = None
+                merged_config.water_box.edge_length = None
+
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
         with tempfile.TemporaryDirectory(prefix="prepmd-config-") as temp_dir:
             temp_config_path = Path(temp_dir) / "prepare.config.yaml"
@@ -338,6 +373,16 @@ def prepare(
     except PrepMDError as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
+
+
+def _resolve_pdb_path(config: ProjectConfig) -> Path | None:
+    """Return the first available local PDB path from *config*, or None."""
+    if config.protein.pdb_file:
+        return Path(config.protein.pdb_file)
+    for path in config.protein.pdb_files.values():
+        if path:
+            return Path(path)
+    return None
 
 
 def main() -> None:

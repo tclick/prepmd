@@ -878,3 +878,59 @@ def test_structure_builder_get_results(tmp_path: Path) -> None:
 def test_structure_build_error_exported() -> None:
     """StructureBuildError is part of the public exception hierarchy."""
     assert issubclass(StructureBuildError, Exception)
+
+
+def _write_minimal_pdb(path: Path, coords: list[tuple[float, float, float]]) -> None:
+    lines: list[str] = []
+    for i, (x, y, z) in enumerate(coords, start=1):
+        lines.append(f"ATOM  {i:5d}  CA  ALA A{i:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00           C")
+    lines.append("END")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_cli_prepare_auto_box(tmp_path: Path) -> None:
+    """--auto-box computes water box dimensions from PDB bounding box + padding."""
+    pdb = tmp_path / "protein.pdb"
+    _write_minimal_pdb(pdb, [(0.0, 0.0, 0.0), (20.0, 30.0, 25.0)])
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "auto-box-demo",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(pdb),
+            "--box-shape",
+            "cubic",
+            "--auto-box-padding",
+            "10",
+            "--auto-box",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Project directories are created, confirming the auto-box path ran without error
+    assert (tmp_path / "auto-box-demo").exists()
+
+
+def test_cli_prepare_auto_box_requires_local_pdb(tmp_path: Path) -> None:
+    """--auto-box without a local PDB file exits with an error."""
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "auto-box-fail",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-id",
+            "1abc",
+            "--auto-box",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--auto-box requires a local PDB file" in result.output
