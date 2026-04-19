@@ -143,6 +143,7 @@ class StructureBuilder(SimulationPlan):
         sims_base = self.root_dir / "05_simulations"
         for variant in sorted(self.config.protein.variants):
             variant_dir = sims_base / variant
+            self._write_variant_prepare_file(variant)
             for replica_idx in range(1, self.config.simulation.replicas + 1):
                 replica_num = f"{replica_idx:03d}"
                 replica_dir = variant_dir / f"replica_{replica_num}"
@@ -199,13 +200,15 @@ class StructureBuilder(SimulationPlan):
             render_protocol_overview(self.config),
             encoding="utf-8",
         )
+
+    def _write_variant_prepare_file(self, variant: str) -> None:
         pdb_file = self._variant_pdb_files.get(variant)
         prep_contents = self._engine.prepare_from_pdb(pdb_file, self.config)
         prepare_script = (
             self.root_dir
             / "02_scripts"
             / "preparation"
-            / f"{variant}_replica_{replica_num}_{self._engine.name}_prepare.in"
+            / f"{variant}_{self._engine.name}_prepare.in"
         )
         prepare_script.write_text(prep_contents, encoding="utf-8")
 

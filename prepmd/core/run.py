@@ -59,8 +59,8 @@ class PlannedPrepareFile:
     variant: str
 
 
-def _prepare_script_filename(engine_name: str, variant: str, replica_num: str) -> str:
-    return f"{variant}_replica_{replica_num}_{engine_name}_prepare.in"
+def _prepare_script_filename(engine_name: str, variant: str) -> str:
+    return f"{variant}_{engine_name}_prepare.in"
 
 
 @dataclass(frozen=True)
@@ -240,6 +240,15 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
         for variant in sorted(config.protein.variants):
             variant_dir = sims_base / variant
             directories.append(variant_dir)
+            prepare_files.append(
+                PlannedPrepareFile(
+                    root_dir
+                    / "02_scripts"
+                    / "preparation"
+                    / _prepare_script_filename(engine.name, variant),
+                    variant=variant,
+                )
+            )
             for replica_idx in range(1, config.simulation.replicas + 1):
                 replica_num = f"{replica_idx:03d}"
                 replica_dir = variant_dir / f"replica_{replica_num}"
@@ -261,15 +270,6 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                 files.extend(
                     PlannedFile(path=replica_dir / relative_path, content=content)
                     for relative_path, content in workflow_scripts.items()
-                )
-                prepare_files.append(
-                    PlannedPrepareFile(
-                        root_dir
-                        / "02_scripts"
-                        / "preparation"
-                        / _prepare_script_filename(engine.name, variant, replica_num),
-                        variant=variant,
-                    )
                 )
 
         sorted_directories = tuple(sorted(set(directories)))

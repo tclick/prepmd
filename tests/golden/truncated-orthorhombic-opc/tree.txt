@@ -6,8 +6,8 @@
 02_scripts/
 02_scripts/analysis/
 02_scripts/preparation/
-02_scripts/preparation/apo_replica_001_amber_prepare.in
-02_scripts/preparation/holo_replica_001_amber_prepare.in
+02_scripts/preparation/apo_amber_prepare.in
+02_scripts/preparation/holo_amber_prepare.in
 02_scripts/simulation/
 02_scripts/utilities/
 03_logs/
