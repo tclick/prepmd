@@ -1,0 +1,7 @@
+parm ../system.prmtop
+trajin ../04_production/run_001/production.nc
+trajin ../04_production/run_002/production.nc
+trajin ../04_production/run_003/production.nc
+strip :WAT,Na+,Cl-
+trajout stripped_protein.nc netcdf
+run

@@ -1,0 +1,4 @@
+parm ../system.prmtop
+trajin ../05_post_processing/centered_protein.nc
+hbond hb out hbond_counts.dat avgout hbond_avg.dat
+run

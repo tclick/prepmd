@@ -21,10 +21,9 @@ def validate_pdb_id(pdb_id: str) -> str:
     """Validate and normalize a PDB ID."""
     if pdb_id != pdb_id.strip():
         raise PDBValidationError("PDB ID must not include leading or trailing whitespace.")
-    normalized = pdb_id.upper()
-    if not PDB_ID_PATTERN.fullmatch(normalized):
+    if not PDB_ID_PATTERN.fullmatch(pdb_id):
         raise PDBValidationError("PDB ID must be exactly 4 alphanumeric characters.")
-    return normalized
+    return pdb_id.upper()
 
 
 class PDBHandler:
