@@ -675,7 +675,7 @@ def test_cli_prepare(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == 0
-    assert (tmp_path / "prep" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in").exists()
+    assert (tmp_path / "prep" / "02_scripts" / "preparation" / "apo_gromacs_prepare.in").exists()
     assert (tmp_path / "prep" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
 
 
@@ -711,7 +711,7 @@ def test_cli_prepare_with_config_and_cli_overrides(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
-    assert (tmp_path / "from-config" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in").exists()
+    assert (tmp_path / "from-config" / "02_scripts" / "preparation" / "apo_gromacs_prepare.in").exists()
     assert (tmp_path / "from-config" / "05_simulations" / "holo" / "replica_002" / "PROTOCOL.md").exists()
 
 
@@ -743,7 +743,7 @@ def test_cli_prepare_offline_uses_cached_pdb_without_network(tmp_path: Path, mon
     )
 
     assert result.exit_code == 0
-    assert (tmp_path / "prep-offline" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").exists()
+    assert (tmp_path / "prep-offline" / "02_scripts" / "preparation" / "apo_amber_prepare.in").exists()
 
 
 def test_cli_prepare_supports_apo_holo_pdb_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -778,8 +778,8 @@ def test_cli_prepare_supports_apo_holo_pdb_ids(tmp_path: Path, monkeypatch: pyte
     assert requested_ids == ["1ABC", "2XYZ"]
     assert (tmp_path / "prep-variant-ids" / "01_input" / "structures" / "1ABC.cif").exists()
     assert (tmp_path / "prep-variant-ids" / "01_input" / "structures" / "2XYZ.cif").exists()
-    apo_prepare = tmp_path / "prep-variant-ids" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in"
-    holo_prepare = tmp_path / "prep-variant-ids" / "05_simulations" / "holo" / "replica_001" / "amber_prepare.in"
+    apo_prepare = tmp_path / "prep-variant-ids" / "02_scripts" / "preparation" / "apo_amber_prepare.in"
+    holo_prepare = tmp_path / "prep-variant-ids" / "02_scripts" / "preparation" / "holo_amber_prepare.in"
     assert "loadpdb" in apo_prepare.read_text(encoding="utf-8")
     assert "loadpdb" in holo_prepare.read_text(encoding="utf-8")
 
@@ -836,7 +836,7 @@ def test_cli_prepare_with_orthorhombic_box_dimensions(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == 0
-    prep_file = tmp_path / "prep-ortho" / "05_simulations" / "apo" / "replica_001" / "gromacs_prepare.in"
+    prep_file = tmp_path / "prep-ortho" / "02_scripts" / "preparation" / "apo_gromacs_prepare.in"
     assert "-box 12.000 12.000 15.000 -bt triclinic" in prep_file.read_text(encoding="utf-8")
 
 
@@ -869,7 +869,7 @@ def test_cli_prepare_adds_ions_and_neutralization_for_amber(tmp_path: Path) -> N
         ],
     )
     assert result.exit_code == 0
-    prep_file = tmp_path / "prep-ions" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in"
+    prep_file = tmp_path / "prep-ions" / "02_scripts" / "preparation" / "apo_amber_prepare.in"
     text = prep_file.read_text(encoding="utf-8")
     assert "addions2 mol K+ 0 Cl- 0" in text
     assert "addionsrand mol K+ 26 Cl- 26" in text

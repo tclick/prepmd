@@ -7,6 +7,8 @@
 02_scripts/
 02_scripts/analysis/
 02_scripts/preparation/
+02_scripts/preparation/apo_amber_prepare.in
+02_scripts/preparation/holo_amber_prepare.in
 02_scripts/simulation/
 02_scripts/simulation/05_post_processing/
 02_scripts/simulation/05_post_processing/01_strip_waters.cpptraj
@@ -64,7 +66,6 @@
 05_simulations/apo/replica_001/07_backup/
 05_simulations/apo/replica_001/PROTOCOL.md
 05_simulations/apo/replica_001/README.md
-05_simulations/apo/replica_001/amber_prepare.in
 05_simulations/holo/
 05_simulations/holo/replica_001/
 05_simulations/holo/replica_001/01_minimization/
@@ -99,4 +100,3 @@
 05_simulations/holo/replica_001/07_backup/
 05_simulations/holo/replica_001/PROTOCOL.md
 05_simulations/holo/replica_001/README.md
-05_simulations/holo/replica_001/amber_prepare.in

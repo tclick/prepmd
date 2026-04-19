@@ -65,6 +65,10 @@ class PlannedPrepareFile:
     variant: str
 
 
+def _prepare_script_filename(engine_name: str, variant: str) -> str:
+    return f"{variant}_{engine_name}_prepare.in"
+
+
 @dataclass(frozen=True)
 class SimulationPlan:
     """Deterministic filesystem plan built from configuration."""
@@ -248,6 +252,12 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
         for variant in sorted(config.protein.variants):
             variant_dir = sims_base / variant
             directories.append(variant_dir)
+            prepare_files.append(
+                PlannedPrepareFile(
+                    root_dir / "02_scripts" / "preparation" / _prepare_script_filename(engine.name, variant),
+                    variant=variant,
+                )
+            )
             for replica_idx in range(1, config.simulation.replicas + 1):
                 replica_num = f"{replica_idx:03d}"
                 replica_dir = variant_dir / f"replica_{replica_num}"
@@ -265,7 +275,6 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                     )
                 )
                 files.append(PlannedFile(replica_dir / "PROTOCOL.md", render_protocol_overview(config)))
-                prepare_files.append(PlannedPrepareFile(replica_dir / f"{engine.name}_prepare.in", variant=variant))
 
         sorted_directories = tuple(sorted(set(directories)))
         sorted_files = tuple(sorted(files, key=lambda planned: str(planned.path)))
