@@ -242,10 +242,7 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
             directories.append(variant_dir)
             prepare_files.append(
                 PlannedPrepareFile(
-                    root_dir
-                    / "02_scripts"
-                    / "preparation"
-                    / _prepare_script_filename(engine.name, variant),
+                    root_dir / "02_scripts" / "preparation" / _prepare_script_filename(engine.name, variant),
                     variant=variant,
                 )
             )
