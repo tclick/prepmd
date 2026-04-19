@@ -45,13 +45,15 @@ def assert_setup_matches_golden(
 
 
 def _run_setup(*, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: GoldenScenario) -> Path:
+    scenario_root = tmp_path / scenario.name
     if scenario.mock_download_path is not None:
-        mock_download_path = scenario.mock_download_path
+        mock_download_path = scenario_root / scenario.mock_download_path
+        mock_download_path.parent.mkdir(parents=True, exist_ok=True)
+        mock_download_path.write_text("HEADER MOCK DOWNLOAD\n", encoding="utf-8")
         monkeypatch.setattr(
             "prepmd.core.run.PDBHandler.get_or_download",
             lambda _self, _pdb_id: Path(mock_download_path),
         )
-    scenario_root = tmp_path / scenario.name
     output_dir = scenario_root / "output"
     config_path = scenario_root / scenario.config_filename
     config_path.parent.mkdir(parents=True, exist_ok=True)

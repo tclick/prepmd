@@ -26,6 +26,13 @@ def validate_pdb_id(pdb_id: str) -> str:
     return pdb_id.upper()
 
 
+def prefer_remote_structure_format(configured: StructureFormat, *, explicitly_set: bool) -> StructureFormat:
+    """Prefer mmCIF for remote PDB IDs unless the format was explicitly set."""
+    if configured == "pdb" and not explicitly_set:
+        return "mmcif"
+    return configured
+
+
 class PDBHandler:
     """Retrieve and cache PDB/mmCIF files from the Protein Data Bank."""
 

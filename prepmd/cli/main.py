@@ -26,7 +26,7 @@ from prepmd.config.models import (
 )
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
-from prepmd.structure.pdb_handler import PDBHandler
+from prepmd.structure.pdb_handler import PDBHandler, prefer_remote_structure_format
 from prepmd.types import StructureFormat
 from prepmd.utils.logging import configure_logging
 
@@ -84,9 +84,9 @@ OFFLINE_OPTION = typer.Option(
     help="Use cached PDB files only and disable network fetching.",
 )
 STRUCTURE_FORMAT_OPTION = typer.Option(
-    "pdb",
+    None,
     "--structure-format",
-    help="Structure file format for remote downloads: pdb or mmcif.",
+    help="Structure file format for remote downloads: pdb or mmcif (default behavior prefers mmcif).",
 )
 APO_PDB_OPTION = typer.Option(None, help="Apo input PDB file.")
 HOLO_PDB_OPTION = typer.Option(None, help="Holo input PDB file.")
@@ -464,10 +464,14 @@ def _resolve_pdb_path(config: ProjectConfig) -> Path | None:
     if remote_id is None:
         return None
     cache_dir = Path(config.protein.pdb_cache_dir) if config.protein.pdb_cache_dir else None
+    structure_format = prefer_remote_structure_format(
+        config.protein.structure_format,
+        explicitly_set="structure_format" in config.protein.model_fields_set,
+    )
     return PDBHandler(
         cache_dir=cache_dir,
         offline=config.protein.offline,
-        structure_format=config.protein.structure_format,
+        structure_format=structure_format,
     ).get_or_download(remote_id)
 
 
