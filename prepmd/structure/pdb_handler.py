@@ -44,7 +44,7 @@ class PDBHandler:
         self.backoff_seconds = backoff_seconds
         self.max_backoff_seconds = max_backoff_seconds
         self.offline = offline
-        self.structure_format = structure_format
+        self.structure_format: StructureFormat = structure_format
 
     def cache_path(self, pdb_id: str) -> Path:
         """Return cache file path for a PDB ID."""
