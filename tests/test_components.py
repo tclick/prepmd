@@ -318,45 +318,22 @@ def test_cli_prepare_debug_bundle_contains_expected_members(tmp_path: Path) -> N
     assert bundle_path.exists()
     with ZipFile(bundle_path) as archive:
         names = set(archive.namelist())
+        env = json.loads(archive.read("env.json").decode("utf-8"))
+        manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
     assert "config.input.yaml" in names
     assert "config.resolved.yaml" in names
     assert "plan.json" in names
+    assert "plan.preview.txt" in names
+    assert "plan.sha256" in names
     assert "manifest.json" in names
+    assert ".prepmd_state.json" in names
+    assert "schema_reference.json" in names
+    assert "pdb_cache_status.json" in names
     assert "env.json" in names
     assert "logs.txt" in names
     assert "command.txt" in names
     assert isinstance(env["plan_sha256"], str)
     assert env["plan_sha256"] == manifest["plan_sha256"]
-
-
-def test_cli_prepare_debug_bundle_contains_expected_members(tmp_path: Path) -> None:
-    runner = CliRunner()
-    bundle_path = tmp_path / "debug.zip"
-    result = runner.invoke(
-        app,
-        [
-            "prepare",
-            "--project-name",
-            "bundle-prepare-demo",
-            "--output-dir",
-            str(tmp_path),
-            "--pdb-file",
-            str(tmp_path / "input.pdb"),
-            "--debug-bundle",
-            str(bundle_path),
-        ],
-    )
-    assert result.exit_code == 0
-    assert bundle_path.exists()
-    with ZipFile(bundle_path) as archive:
-        names = set(archive.namelist())
-    assert "config.input.yaml" in names
-    assert "config.resolved.yaml" in names
-    assert "plan.json" in names
-    assert "manifest.json" in names
-    assert "env.json" in names
-    assert "logs.txt" in names
-    assert "command.txt" in names
 
 
 def test_cli_setup_debug_bundle_redacts_home_and_secret_env_and_respects_json_log_format(tmp_path: Path) -> None:

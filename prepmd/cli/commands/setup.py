@@ -138,6 +138,7 @@ def setup_project(
     plan_json = _json_text(plan_payload)
     pdb_cache_payload, cache_path = _pdb_cache_payload(config)
     cache_hit_before_apply = cache_path.exists() if cache_path is not None else None
+    pdb_cache_payload["status"] = _cache_status(cache_hit_before_apply=cache_hit_before_apply)
     if plan_out is not None:
         _write_text(plan_out, plan_json)
 
@@ -160,7 +161,6 @@ def setup_project(
             config_sha256=_sha256_bytes(raw_config_text.encode("utf-8")),
             plan_sha256=plan_sha256,
             resume=resume and not overwrite,
-            offline=config.protein.offline,
         )
         result = apply_plan(
             plan,
@@ -187,6 +187,7 @@ def setup_project(
 
     if debug_bundle is not None:
         resolved_config_yaml = yaml.safe_dump(config.model_dump(mode="json"), sort_keys=True)
+        log_name, logs_content = reporter.render(log_format=log_format)
         env_json = _json_text(_environment_payload(plan_sha256=plan_sha256))
         _write_debug_bundle(
             debug_bundle=debug_bundle,
@@ -346,6 +347,13 @@ def _pdb_input_payload(
 
 
 def _environment_payload(*, plan_sha256: str) -> dict[str, object]:
+    env: dict[str, str] = {}
+    for key in ENV_SNAPSHOT_KEYS:
+        value = os.environ.get(key)
+        if value is None:
+            continue
+        env[key] = "***REDACTED***" if _is_secret_env_key(key) else value
+    secret_env_names = sorted(key for key in os.environ if _is_secret_env_key(key))
     return {
         "plan_sha256": plan_sha256,
         "prepmd_version": __version__,
@@ -463,6 +471,11 @@ def _home_path_aliases() -> tuple[str, ...]:
         os.path.normpath(str(home)),
     }
     return tuple(sorted(aliases, key=len, reverse=True))
+
+
+def _is_secret_env_key(name: str) -> bool:
+    normalized = name.upper()
+    return normalized in SECRET_ENV_KEY_NAMES or any(normalized.endswith(suffix) for suffix in SECRET_ENV_SUFFIXES)
 
 
 def _log_event_name(message: str) -> str:
