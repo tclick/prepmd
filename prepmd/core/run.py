@@ -489,8 +489,7 @@ def _resolve_variant_pdb_inputs(
             return variant, str(handler.get_or_download(remote_id))
 
         with ThreadPoolExecutor(max_workers=min(len(to_download), _MAX_PDB_DOWNLOAD_WORKERS)) as executor:
-            for variant, path in executor.map(_download, to_download):
-                variant_inputs[variant] = path
+            variant_inputs.update(executor.map(_download, to_download))
 
     return variant_inputs
 
