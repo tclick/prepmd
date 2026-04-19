@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from prepmd.caching import memoize
 from prepmd.cli.commands import setup as setup_command
-from prepmd.cli.main import LICENSE_TEXT, app
+from prepmd.cli.main import LICENSE_TEXT, PDBHandler, app
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig
 from prepmd.config.validators.compatibility import CompatibilityValidator
@@ -987,8 +987,19 @@ def test_cli_prepare_auto_box(tmp_path: Path) -> None:
     assert (tmp_path / "auto-box-demo").exists()
 
 
-def test_cli_prepare_auto_box_requires_local_pdb(tmp_path: Path) -> None:
-    """--auto-box without a local PDB file exits with an error."""
+def test_cli_prepare_auto_box_with_pdb_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--auto-box accepts --pdb-id by resolving a downloadable structure path."""
+    requested_ids: list[str] = []
+
+    def fake_get_or_download(self: object, pdb_id: str) -> Path:
+        requested_ids.append(pdb_id.upper())
+        resolved = tmp_path / "cache" / f"{pdb_id.upper()}.pdb"
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        _write_minimal_pdb(resolved, [(0.0, 0.0, 0.0), (10.0, 12.0, 14.0)])
+        return resolved
+
+    monkeypatch.setattr(PDBHandler, "get_or_download", fake_get_or_download)
+
     runner = CliRunner()
     result = runner.invoke(
         app,
@@ -1003,5 +1014,40 @@ def test_cli_prepare_auto_box_requires_local_pdb(tmp_path: Path) -> None:
             "--auto-box",
         ],
     )
-    assert result.exit_code != 0
-    assert "--auto-box requires a local PDB file" in result.output
+    assert result.exit_code == 0, result.output
+    assert requested_ids
+    assert set(requested_ids) == {"1ABC"}
+
+
+def test_cli_prepare_auto_box_with_variant_pdb_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--auto-box accepts variant PDB IDs."""
+    requested_ids: list[str] = []
+
+    def fake_get_or_download(self: object, pdb_id: str) -> Path:
+        requested_ids.append(pdb_id.upper())
+        resolved = tmp_path / "cache" / f"{pdb_id.upper()}.pdb"
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        _write_minimal_pdb(resolved, [(0.0, 0.0, 0.0), (9.0, 9.0, 9.0)])
+        return resolved
+
+    monkeypatch.setattr(PDBHandler, "get_or_download", fake_get_or_download)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "auto-box-variant-ids",
+            "--output-dir",
+            str(tmp_path),
+            "--apo-pdb-id",
+            "1abc",
+            "--holo-pdb-id",
+            "2xyz",
+            "--auto-box",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert requested_ids
+    assert set(requested_ids) == {"1ABC", "2XYZ"}
