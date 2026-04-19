@@ -233,10 +233,10 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                 directories.append(base / child)
 
         workflow_scripts = render_replica_workflow_scripts(engine.name)
-        files.extend(
-            PlannedFile(path=root_dir / SIMULATION_SCRIPTS_DIR / relative_path, content=content)
-            for relative_path, content in workflow_scripts.items()
-        )
+        for relative_path, content in workflow_scripts.items():
+            script_path = root_dir / SIMULATION_SCRIPTS_DIR / relative_path
+            directories.append(script_path.parent)
+            files.append(PlannedFile(path=script_path, content=content))
 
         sims_base = root_dir / "05_simulations"
         directories.append(sims_base)

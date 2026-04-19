@@ -1,4 +1,0 @@
-parm ../system.prmtop
-trajin ../05_post_processing/centered_protein.nc
-radgyr :* out rgyr.dat
-run
