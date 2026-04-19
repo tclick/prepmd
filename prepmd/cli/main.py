@@ -26,6 +26,7 @@ from prepmd.config.models import (
 )
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
+from prepmd.structure.pdb_handler import PDBHandler
 from prepmd.types import StructureFormat
 from prepmd.utils.logging import configure_logging
 
@@ -70,7 +71,8 @@ AUTO_BOX_OPTION = typer.Option(
     "--auto-box/--no-auto-box",
     help=(
         "Auto-size the water box from the protein bounding box plus --auto-box-padding. "
-        "Requires a local PDB file (--pdb-file or --apo-pdb/--holo-pdb)."
+        "Requires a PDB input from --pdb-file/--apo-pdb/--holo-pdb or "
+        "--pdb-id/--apo-pdb-id/--holo-pdb-id."
     ),
 )
 PDB_FILE_OPTION = typer.Option(None, help="Input PDB or mmCIF file path.")
@@ -390,7 +392,10 @@ def prepare(
         if auto_box:
             pdb_path = _resolve_pdb_path(merged_config)
             if pdb_path is None:
-                raise PrepMDError("--auto-box requires a local PDB file (--pdb-file or --apo-pdb/--holo-pdb).")
+                raise PrepMDError(
+                    "--auto-box requires a PDB input from --pdb-file/--apo-pdb/--holo-pdb "
+                    "or --pdb-id/--apo-pdb-id/--holo-pdb-id."
+                )
             from prepmd.core.box_geometry import (
                 CubicBox,
                 TruncatedOctahedronBox,
@@ -446,13 +451,26 @@ def prepare(
 
 
 def _resolve_pdb_path(config: ProjectConfig) -> Path | None:
-    """Return the first available local PDB path from *config*, or None."""
+    """Return a PDB path for auto-box from local input or downloaded remote ID."""
     if config.protein.pdb_file:
         return Path(config.protein.pdb_file)
     for path in config.protein.pdb_files.values():
         if path:
             return Path(path)
-    return None
+    remote_id = config.protein.pdb_id
+    if remote_id is None:
+        for variant_id in config.protein.pdb_ids.values():
+            if variant_id:
+                remote_id = variant_id
+                break
+    if remote_id is None:
+        return None
+    cache_dir = Path(config.protein.pdb_cache_dir) if config.protein.pdb_cache_dir is not None else None
+    return PDBHandler(
+        cache_dir=cache_dir,
+        offline=config.protein.offline,
+        structure_format=config.protein.structure_format,
+    ).get_or_download(remote_id)
 
 
 def main() -> None:
