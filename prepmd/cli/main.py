@@ -457,15 +457,13 @@ def _resolve_pdb_path(config: ProjectConfig) -> Path | None:
     for path in config.protein.pdb_files.values():
         if path:
             return Path(path)
-    remote_id = config.protein.pdb_id
-    if remote_id is None:
-        for variant_id in config.protein.pdb_ids.values():
-            if variant_id:
-                remote_id = variant_id
-                break
+    remote_id = config.protein.pdb_id or next(
+        (variant_id for variant_id in config.protein.pdb_ids.values() if variant_id),
+        None,
+    )
     if remote_id is None:
         return None
-    cache_dir = Path(config.protein.pdb_cache_dir) if config.protein.pdb_cache_dir is not None else None
+    cache_dir = Path(config.protein.pdb_cache_dir) if config.protein.pdb_cache_dir else None
     return PDBHandler(
         cache_dir=cache_dir,
         offline=config.protein.offline,

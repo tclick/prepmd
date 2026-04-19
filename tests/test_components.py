@@ -1,5 +1,4 @@
 import json
-from importlib import import_module
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -9,7 +8,7 @@ from typer.testing import CliRunner
 
 from prepmd.caching import memoize
 from prepmd.cli.commands import setup as setup_command
-from prepmd.cli.main import LICENSE_TEXT, app
+from prepmd.cli.main import LICENSE_TEXT, PDBHandler, app
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import EngineName, ProjectConfig, ProteinConfig
 from prepmd.config.validators.compatibility import CompatibilityValidator
@@ -999,7 +998,7 @@ def test_cli_prepare_auto_box_with_pdb_id(tmp_path: Path, monkeypatch: pytest.Mo
         _write_minimal_pdb(resolved, [(0.0, 0.0, 0.0), (10.0, 12.0, 14.0)])
         return resolved
 
-    monkeypatch.setattr(import_module("prepmd.cli.main").PDBHandler, "get_or_download", fake_get_or_download)
+    monkeypatch.setattr(PDBHandler, "get_or_download", fake_get_or_download)
 
     runner = CliRunner()
     result = runner.invoke(
@@ -1031,7 +1030,7 @@ def test_cli_prepare_auto_box_with_variant_pdb_ids(tmp_path: Path, monkeypatch: 
         _write_minimal_pdb(resolved, [(0.0, 0.0, 0.0), (9.0, 9.0, 9.0)])
         return resolved
 
-    monkeypatch.setattr(import_module("prepmd.cli.main").PDBHandler, "get_or_download", fake_get_or_download)
+    monkeypatch.setattr(PDBHandler, "get_or_download", fake_get_or_download)
 
     runner = CliRunner()
     result = runner.invoke(
@@ -1051,4 +1050,4 @@ def test_cli_prepare_auto_box_with_variant_pdb_ids(tmp_path: Path, monkeypatch: 
     )
     assert result.exit_code == 0, result.output
     assert requested_ids
-    assert requested_ids[0] in {"1ABC", "2XYZ"}
+    assert set(requested_ids) == {"1ABC", "2XYZ"}
