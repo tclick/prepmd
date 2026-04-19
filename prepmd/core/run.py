@@ -59,6 +59,10 @@ class PlannedPrepareFile:
     variant: str
 
 
+def _prepare_script_filename(engine_name: str, variant: str, replica_num: str) -> str:
+    return f"{variant}_replica_{replica_num}_{engine_name}_prepare.in"
+
+
 @dataclass(frozen=True)
 class SimulationPlan:
     """Deterministic filesystem plan built from configuration."""
@@ -258,7 +262,12 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                     PlannedFile(path=replica_dir / relative_path, content=content)
                     for relative_path, content in workflow_scripts.items()
                 )
-                prepare_files.append(PlannedPrepareFile(replica_dir / f"{engine.name}_prepare.in", variant=variant))
+                prepare_files.append(
+                    PlannedPrepareFile(
+                        root_dir / "02_scripts" / "preparation" / _prepare_script_filename(engine.name, variant, replica_num),
+                        variant=variant,
+                    )
+                )
 
         sorted_directories = tuple(sorted(set(directories)))
         sorted_files = tuple(sorted(files, key=lambda planned: str(planned.path)))

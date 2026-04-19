@@ -201,7 +201,13 @@ class StructureBuilder(SimulationPlan):
         )
         pdb_file = self._variant_pdb_files.get(variant)
         prep_contents = self._engine.prepare_from_pdb(pdb_file, self.config)
-        (replica_dir / f"{self._engine.name}_prepare.in").write_text(prep_contents, encoding="utf-8")
+        prepare_script = (
+            self.root_dir
+            / "02_scripts"
+            / "preparation"
+            / f"{variant}_replica_{replica_num}_{self._engine.name}_prepare.in"
+        )
+        prepare_script.write_text(prep_contents, encoding="utf-8")
 
     def _resolve_shared_pdb_file(self) -> str | None:
         protein = self.config.protein

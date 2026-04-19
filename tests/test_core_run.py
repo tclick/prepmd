@@ -59,7 +59,7 @@ def test_apply_plan_creates_expected_output(tmp_path: Path) -> None:
     setup_result = apply_plan(plan, reporter=reporter)
     assert setup_result.root_dir == tmp_path / "plan-demo"
     assert (setup_result.root_dir / "05_simulations" / "apo" / "replica_001" / "README.md").exists()
-    assert (setup_result.root_dir / "05_simulations" / "holo" / "replica_001" / "amber_prepare.in").exists()
+    assert (setup_result.root_dir / "02_scripts" / "preparation" / "holo_replica_001_amber_prepare.in").exists()
     assert (
         setup_result.root_dir
         / "05_simulations"
@@ -114,9 +114,7 @@ def test_render_prepare_files_uses_variant_pdb_id_references_without_download(tm
     plan = build_plan(config)
     rendered = render_prepare_files(plan, download_remote_pdb=False)
     payload = {planned.path.as_posix(): planned.content for planned in rendered}
-    apo_path = (tmp_path / "variant-id-demo" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").as_posix()
-    holo_path = (
-        tmp_path / "variant-id-demo" / "05_simulations" / "holo" / "replica_001" / "amber_prepare.in"
-    ).as_posix()
+    apo_path = (tmp_path / "variant-id-demo" / "02_scripts" / "preparation" / "apo_replica_001_amber_prepare.in").as_posix()
+    holo_path = (tmp_path / "variant-id-demo" / "02_scripts" / "preparation" / "holo_replica_001_amber_prepare.in").as_posix()
     assert "loadpdb pdb:1ABC" in payload[apo_path]
     assert "loadpdb pdb:2XYZ" in payload[holo_path]
