@@ -26,7 +26,7 @@ from prepmd.config.models import (
 )
 from prepmd.exceptions import PDBMutualExclusivityError, PrepMDError
 from prepmd.models.results import RunResult
-from prepmd.structure.pdb_handler import PDBHandler
+from prepmd.structure.pdb_handler import PDBHandler, prefer_remote_structure_format
 from prepmd.types import StructureFormat
 from prepmd.utils.logging import configure_logging
 
@@ -86,7 +86,7 @@ OFFLINE_OPTION = typer.Option(
 STRUCTURE_FORMAT_OPTION = typer.Option(
     "pdb",
     "--structure-format",
-    help="Structure file format for remote downloads: pdb or mmcif.",
+    help="Structure file format for remote downloads: pdb or mmcif (remote PDB IDs prefer mmcif).",
 )
 APO_PDB_OPTION = typer.Option(None, help="Apo input PDB file.")
 HOLO_PDB_OPTION = typer.Option(None, help="Holo input PDB file.")
@@ -405,18 +405,19 @@ def prepare(
 
             extents = protein_extents_from_pdb(pdb_path)
             geometry = compute_box_from_protein(extents, merged_config.water_box)
-            if isinstance(geometry, CubicBox):
-                merged_config.water_box.side_length = geometry.side_length
-                merged_config.water_box.edge_length = None
-                merged_config.water_box.dimensions = None
-            elif isinstance(geometry, TruncatedOctahedronBox):
-                merged_config.water_box.edge_length = geometry.edge_length
-                merged_config.water_box.side_length = None
-                merged_config.water_box.dimensions = None
-            else:
-                merged_config.water_box.dimensions = geometry.dimensions
-                merged_config.water_box.side_length = None
-                merged_config.water_box.edge_length = None
+            match geometry:
+                case CubicBox():
+                    merged_config.water_box.side_length = geometry.side_length
+                    merged_config.water_box.edge_length = None
+                    merged_config.water_box.dimensions = None
+                case TruncatedOctahedronBox():
+                    merged_config.water_box.edge_length = geometry.edge_length
+                    merged_config.water_box.side_length = None
+                    merged_config.water_box.dimensions = None
+                case _:
+                    merged_config.water_box.dimensions = geometry.dimensions
+                    merged_config.water_box.side_length = None
+                    merged_config.water_box.edge_length = None
 
         merged_config = ProjectConfig.model_validate(merged_config.model_dump())
         with tempfile.TemporaryDirectory(prefix="prepmd-config-") as temp_dir:
@@ -464,10 +465,11 @@ def _resolve_pdb_path(config: ProjectConfig) -> Path | None:
     if remote_id is None:
         return None
     cache_dir = Path(config.protein.pdb_cache_dir) if config.protein.pdb_cache_dir else None
+    structure_format = prefer_remote_structure_format(config.protein.structure_format)
     return PDBHandler(
         cache_dir=cache_dir,
         offline=config.protein.offline,
-        structure_format=config.protein.structure_format,
+        structure_format=structure_format,
     ).get_or_download(remote_id)
 
 

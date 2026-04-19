@@ -150,31 +150,31 @@ class WaterBoxConfig(BaseModel):
     @model_validator(mode="after")
     def validate_shape_dimensions(self) -> "WaterBoxConfig":
         """Validate and normalize shape-dependent dimensions."""
-        if self.shape == WaterBoxShape.CUBIC:
-            if self.edge_length is not None or self.dimensions is not None:
-                raise ValueError("Cubic box only accepts side_length.")
-            if self.side_length is None:
-                self.side_length = self.auto_box_padding
-            if self.side_length <= 0.0:
-                raise ValueError("Cubic side_length must be positive.")
-            return self
-
-        if self.shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
-            if self.side_length is not None or self.dimensions is not None:
-                raise ValueError("Truncated octahedron only accepts edge_length.")
-            if self.edge_length is None:
-                self.edge_length = self.auto_box_padding
-            if self.edge_length <= 0.0:
-                raise ValueError("Truncated octahedron edge_length must be positive.")
-            return self
-
-        if self.side_length is not None or self.edge_length is not None:
-            raise ValueError("Orthorhombic box only accepts dimensions.")
-        if self.dimensions is None:
-            self.dimensions = (self.auto_box_padding, self.auto_box_padding, self.auto_box_padding)
-        if any(value <= 0.0 for value in self.dimensions):
-            raise ValueError("Orthorhombic dimensions must all be positive.")
-        return self
+        match self.shape:
+            case WaterBoxShape.CUBIC:
+                if self.edge_length is not None or self.dimensions is not None:
+                    raise ValueError("Cubic box only accepts side_length.")
+                if self.side_length is None:
+                    self.side_length = self.auto_box_padding
+                if self.side_length <= 0.0:
+                    raise ValueError("Cubic side_length must be positive.")
+                return self
+            case WaterBoxShape.TRUNCATED_OCTAHEDRON:
+                if self.side_length is not None or self.dimensions is not None:
+                    raise ValueError("Truncated octahedron only accepts edge_length.")
+                if self.edge_length is None:
+                    self.edge_length = self.auto_box_padding
+                if self.edge_length <= 0.0:
+                    raise ValueError("Truncated octahedron edge_length must be positive.")
+                return self
+            case _:
+                if self.side_length is not None or self.edge_length is not None:
+                    raise ValueError("Orthorhombic box only accepts dimensions.")
+                if self.dimensions is None:
+                    self.dimensions = (self.auto_box_padding, self.auto_box_padding, self.auto_box_padding)
+                if any(value <= 0.0 for value in self.dimensions):
+                    raise ValueError("Orthorhombic dimensions must all be positive.")
+                return self
 
     @model_validator(mode="after")
     def normalize_ion_settings(self) -> "WaterBoxConfig":

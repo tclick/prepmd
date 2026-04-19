@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import threading
 from collections.abc import Callable
 from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
@@ -23,10 +24,11 @@ from prepmd.core.reporting import NullReporter, Reporter
 from prepmd.engines.factory import EngineFactory
 from prepmd.exceptions import SetupApplyError, SetupPlanError, StructureBuildError
 from prepmd.models.results import RunResult, StepResult
-from prepmd.structure.pdb_handler import PDBHandler
+from prepmd.structure.pdb_handler import PDBHandler, prefer_remote_structure_format, validate_pdb_id
 from prepmd.templates.protocol_templates import render_protocol_overview
 from prepmd.templates.readme_templates import render_replica_readme
 from prepmd.templates.workflow_script_templates import render_replica_workflow_scripts
+from prepmd.types import StructureFormat
 
 TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("01_input", ("structures", "parameters", "configs", "tleap_scripts")),
@@ -36,11 +38,15 @@ TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 POST_PROCESSING_DIR = "05_post_processing"
 ANALYSIS_DIR = "06_analysis"
+SIMULATION_SCRIPTS_DIR = Path("02_scripts") / "simulation"
 BACKUP_DIR = "07_backup"
 STATE_VERSION = 1
 STATE_FILENAME = ".prepmd_state.json"
 STEP_STATUS_VALUES = {"pending", "running", "done", "failed"}
 _MAX_PDB_DOWNLOAD_WORKERS = 10
+_STRUCTURE_FORMAT_EXTENSION: dict[StructureFormat, str] = {"pdb": ".pdb", "mmcif": ".cif"}
+_POST_PROCESSING_SCRIPT_PREFIX = Path("02_scripts/post_processing")
+_ANALYSIS_SCRIPT_PREFIX = Path("02_scripts/analysis")
 
 
 @dataclass(slots=True, frozen=True)
@@ -235,6 +241,12 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
             for child in children:
                 directories.append(base / child)
 
+        workflow_scripts = render_replica_workflow_scripts(engine.name)
+        for relative_path, content in workflow_scripts.items():
+            script_path = root_dir / SIMULATION_SCRIPTS_DIR / _normalize_simulation_script_relative_path(relative_path)
+            directories.append(script_path.parent)
+            files.append(PlannedFile(path=script_path, content=content))
+
         sims_base = root_dir / "05_simulations"
         directories.append(sims_base)
         for variant in sorted(config.protein.variants):
@@ -263,11 +275,6 @@ def build_plan(config: ProjectConfig) -> SimulationPlan:
                     )
                 )
                 files.append(PlannedFile(replica_dir / "PROTOCOL.md", render_protocol_overview(config)))
-                workflow_scripts = render_replica_workflow_scripts(engine.name)
-                files.extend(
-                    PlannedFile(path=replica_dir / relative_path, content=content)
-                    for relative_path, content in workflow_scripts.items()
-                )
 
         sorted_directories = tuple(sorted(set(directories)))
         sorted_files = tuple(sorted(files, key=lambda planned: str(planned.path)))
@@ -433,6 +440,7 @@ def render_prepare_files(
         plan.config,
         download_remote_pdb=download_remote_pdb,
         offline=offline,
+        structures_dir=plan.root_dir / "01_input" / "structures",
     )
 
     def _render_one(prepare_file: PlannedPrepareFile) -> PlannedFile:
@@ -465,14 +473,19 @@ def _plan_protocol_directories(
 
 
 def _resolve_variant_pdb_inputs(
-    config: ProjectConfig, *, download_remote_pdb: bool = True, offline: bool = False
+    config: ProjectConfig,
+    *,
+    download_remote_pdb: bool = True,
+    offline: bool = False,
+    structures_dir: Path | None = None,
 ) -> dict[str, str | None]:
     protein = config.protein
+    structure_format = prefer_remote_structure_format(protein.structure_format)
     cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
     handler = PDBHandler(
         cache_dir=cache_dir,
         offline=offline or protein.offline,
-        structure_format=protein.structure_format,
+        structure_format=structure_format,
     )
     variant_inputs: dict[str, str | None] = {}
     to_download: list[tuple[str, str]] = []
@@ -495,7 +508,16 @@ def _resolve_variant_pdb_inputs(
 
         def _download(item: tuple[str, str]) -> tuple[str, str]:
             variant, remote_id = item
-            return variant, str(handler.get_or_download(remote_id))
+            downloaded_path = handler.get_or_download(remote_id)
+            if structures_dir is None:
+                return variant, str(downloaded_path)
+            staged_path = _stage_downloaded_structure(
+                downloaded_path,
+                structures_dir=structures_dir,
+                pdb_id=remote_id,
+                structure_format=structure_format,
+            )
+            return variant, str(Path("01_input") / "structures" / staged_path.name)
 
         with ThreadPoolExecutor(max_workers=min(len(to_download), _MAX_PDB_DOWNLOAD_WORKERS)) as executor:
             variant_inputs.update(executor.map(_download, to_download))
@@ -505,6 +527,31 @@ def _resolve_variant_pdb_inputs(
 
 def _render_subdirectory_readme(title: str) -> str:
     return f"# {title}\n\nGenerated by prepmd.\n"
+
+
+def _normalize_simulation_script_relative_path(relative_path: str) -> Path:
+    """Map template-relative script paths into the simulation script subdirectories."""
+    candidate = Path(relative_path)
+    if candidate.is_relative_to(_POST_PROCESSING_SCRIPT_PREFIX):
+        return Path(POST_PROCESSING_DIR) / candidate.relative_to(_POST_PROCESSING_SCRIPT_PREFIX)
+    if candidate.is_relative_to(_ANALYSIS_SCRIPT_PREFIX):
+        return Path(ANALYSIS_DIR) / candidate.relative_to(_ANALYSIS_SCRIPT_PREFIX)
+    return candidate
+
+
+def _stage_downloaded_structure(
+    downloaded_path: Path,
+    *,
+    structures_dir: Path,
+    pdb_id: str,
+    structure_format: StructureFormat,
+) -> Path:
+    structures_dir.mkdir(parents=True, exist_ok=True)
+    normalized_id = validate_pdb_id(pdb_id)
+    staged_path = structures_dir / f"{normalized_id}{_STRUCTURE_FORMAT_EXTENSION[structure_format]}"
+    if downloaded_path.resolve() != staged_path.resolve():
+        shutil.copy2(downloaded_path, staged_path)
+    return staged_path
 
 
 def _mkdir_action(directory: Path) -> Callable[[], None]:

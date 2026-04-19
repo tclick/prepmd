@@ -651,7 +651,7 @@ def test_cli_offline_mode_validates_pdb_cache_availability(subcommand: str, tmp_
     assert "Pre-populate this cache file" in missing_cache.output
 
     cache_dir.mkdir(parents=True)
-    (cache_dir / "1ABC.pdb").write_text("HEADER OFFLINE CACHE\n", encoding="utf-8")
+    (cache_dir / "1ABC.cif").write_text("HEADER OFFLINE CACHE\n", encoding="utf-8")
     with_cache = runner.invoke(app, command_args)
     assert with_cache.exit_code == 0
 
@@ -719,7 +719,7 @@ def test_cli_prepare_offline_uses_cached_pdb_without_network(tmp_path: Path, mon
     runner = CliRunner()
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
-    (cache_dir / "1ABC.pdb").write_text("cached", encoding="utf-8")
+    (cache_dir / "1ABC.cif").write_text("cached", encoding="utf-8")
 
     def should_not_download(*args: object, **kwargs: object) -> str:
         raise AssertionError("network should not be used in offline mode")
@@ -776,6 +776,8 @@ def test_cli_prepare_supports_apo_holo_pdb_ids(tmp_path: Path, monkeypatch: pyte
 
     assert result.exit_code == 0
     assert requested_ids == ["1ABC", "2XYZ"]
+    assert (tmp_path / "prep-variant-ids" / "01_input" / "structures" / "1ABC.cif").exists()
+    assert (tmp_path / "prep-variant-ids" / "01_input" / "structures" / "2XYZ.cif").exists()
     apo_prepare = tmp_path / "prep-variant-ids" / "02_scripts" / "preparation" / "apo_amber_prepare.in"
     holo_prepare = tmp_path / "prep-variant-ids" / "02_scripts" / "preparation" / "holo_amber_prepare.in"
     assert "loadpdb" in apo_prepare.read_text(encoding="utf-8")

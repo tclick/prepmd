@@ -42,7 +42,6 @@ dependencies = [
     "rich>=13.7.0",
     "loguru>=0.7.0",
     "pyyaml>=6.0",
-    "PyQt6>=6.7.1",
     "biopython>=1.85",
 ]
 

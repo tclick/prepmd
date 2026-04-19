@@ -61,20 +61,10 @@ def test_apply_plan_creates_expected_output(tmp_path: Path) -> None:
     assert (setup_result.root_dir / "05_simulations" / "apo" / "replica_001" / "README.md").exists()
     assert (setup_result.root_dir / "02_scripts" / "preparation" / "holo_amber_prepare.in").exists()
     assert (
-        setup_result.root_dir
-        / "05_simulations"
-        / "apo"
-        / "replica_001"
-        / "05_post_processing"
-        / "03_merge_production.cpptraj"
+        setup_result.root_dir / "02_scripts" / "simulation" / "05_post_processing" / "03_merge_production.cpptraj"
     ).exists()
     assert (
-        setup_result.root_dir
-        / "05_simulations"
-        / "apo"
-        / "replica_001"
-        / "06_analysis"
-        / "03_radius_of_gyration.cpptraj"
+        setup_result.root_dir / "02_scripts" / "simulation" / "06_analysis" / "03_radius_of_gyration.cpptraj"
     ).exists()
     assert reporter.starts == [plan.total_steps]
     assert reporter.finished == 1
