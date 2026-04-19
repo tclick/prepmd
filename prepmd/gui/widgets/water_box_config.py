@@ -231,24 +231,11 @@ class WaterBoxConfigWidget(QGroupBox):
                 extents = protein_extents_from_pdb(Path(pdb_text))
                 geometry = compute_box_from_protein(extents, auto_cfg)
                 dims = geometry.dimensions
-                if shape == WaterBoxShape.CUBIC:
-                    return WaterBoxConfig(
-                        shape=shape,
-                        side_length=dims[0],
-                        auto_box_padding=padding,
-                        include_ions=include_ions,
-                        neutralize_protein=neutralize_protein,
-                        ion_concentration_molar=ion_concentration_molar,
-                        cation=cation,
-                        anion=anion,
-                    )
-                if shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
-                    from prepmd.core.box_geometry import TruncatedOctahedronBox
-
-                    if isinstance(geometry, TruncatedOctahedronBox):
+                match shape:
+                    case WaterBoxShape.CUBIC:
                         return WaterBoxConfig(
                             shape=shape,
-                            edge_length=geometry.edge_length,
+                            side_length=dims[0],
                             auto_box_padding=padding,
                             include_ions=include_ions,
                             neutralize_protein=neutralize_protein,
@@ -256,25 +243,40 @@ class WaterBoxConfigWidget(QGroupBox):
                             cation=cation,
                             anion=anion,
                         )
-                    return WaterBoxConfig(
-                        shape=shape,
-                        auto_box_padding=padding,
-                        include_ions=include_ions,
-                        neutralize_protein=neutralize_protein,
-                        ion_concentration_molar=ion_concentration_molar,
-                        cation=cation,
-                        anion=anion,
-                    )
-                return WaterBoxConfig(
-                    shape=shape,
-                    dimensions=dims,
-                    auto_box_padding=padding,
-                    include_ions=include_ions,
-                    neutralize_protein=neutralize_protein,
-                    ion_concentration_molar=ion_concentration_molar,
-                    cation=cation,
-                    anion=anion,
-                )
+                    case WaterBoxShape.TRUNCATED_OCTAHEDRON:
+                        from prepmd.core.box_geometry import TruncatedOctahedronBox
+
+                        if isinstance(geometry, TruncatedOctahedronBox):
+                            return WaterBoxConfig(
+                                shape=shape,
+                                edge_length=geometry.edge_length,
+                                auto_box_padding=padding,
+                                include_ions=include_ions,
+                                neutralize_protein=neutralize_protein,
+                                ion_concentration_molar=ion_concentration_molar,
+                                cation=cation,
+                                anion=anion,
+                            )
+                        return WaterBoxConfig(
+                            shape=shape,
+                            auto_box_padding=padding,
+                            include_ions=include_ions,
+                            neutralize_protein=neutralize_protein,
+                            ion_concentration_molar=ion_concentration_molar,
+                            cation=cation,
+                            anion=anion,
+                        )
+                    case _:
+                        return WaterBoxConfig(
+                            shape=shape,
+                            dimensions=dims,
+                            auto_box_padding=padding,
+                            include_ions=include_ions,
+                            neutralize_protein=neutralize_protein,
+                            ion_concentration_molar=ion_concentration_molar,
+                            cation=cation,
+                            anion=anion,
+                        )
             # no PDB selected yet; fall back to padding-only defaults
             return WaterBoxConfig(
                 shape=shape,
@@ -286,35 +288,37 @@ class WaterBoxConfigWidget(QGroupBox):
                 anion=anion,
             )
 
-        if shape == WaterBoxShape.CUBIC:
-            return WaterBoxConfig(
-                shape=shape,
-                side_length=self._side_length.value(),
-                include_ions=include_ions,
-                neutralize_protein=neutralize_protein,
-                ion_concentration_molar=ion_concentration_molar,
-                cation=cation,
-                anion=anion,
-            )
-        if shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
-            return WaterBoxConfig(
-                shape=shape,
-                edge_length=self._edge_length.value(),
-                include_ions=include_ions,
-                neutralize_protein=neutralize_protein,
-                ion_concentration_molar=ion_concentration_molar,
-                cation=cation,
-                anion=anion,
-            )
-        return WaterBoxConfig(
-            shape=shape,
-            dimensions=(self._x_dim.value(), self._y_dim.value(), self._z_dim.value()),
-            include_ions=include_ions,
-            neutralize_protein=neutralize_protein,
-            ion_concentration_molar=ion_concentration_molar,
-            cation=cation,
-            anion=anion,
-        )
+        match shape:
+            case WaterBoxShape.CUBIC:
+                return WaterBoxConfig(
+                    shape=shape,
+                    side_length=self._side_length.value(),
+                    include_ions=include_ions,
+                    neutralize_protein=neutralize_protein,
+                    ion_concentration_molar=ion_concentration_molar,
+                    cation=cation,
+                    anion=anion,
+                )
+            case WaterBoxShape.TRUNCATED_OCTAHEDRON:
+                return WaterBoxConfig(
+                    shape=shape,
+                    edge_length=self._edge_length.value(),
+                    include_ions=include_ions,
+                    neutralize_protein=neutralize_protein,
+                    ion_concentration_molar=ion_concentration_molar,
+                    cation=cation,
+                    anion=anion,
+                )
+            case _:
+                return WaterBoxConfig(
+                    shape=shape,
+                    dimensions=(self._x_dim.value(), self._y_dim.value(), self._z_dim.value()),
+                    include_ions=include_ions,
+                    neutralize_protein=neutralize_protein,
+                    ion_concentration_molar=ion_concentration_molar,
+                    cation=cation,
+                    anion=anion,
+                )
 
     def set_shape(self, shape: WaterBoxShape) -> None:
         """Set the active shape in the widget."""

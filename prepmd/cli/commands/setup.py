@@ -105,10 +105,12 @@ class CapturingReporter:
         self._delegate.on_finish(result)
 
     def render(self, *, log_format: Literal["text", "json"]) -> tuple[str, str]:
-        if log_format == "json":
-            payload = [{"event": _log_event_name(message), "message": message} for message in self.messages]
-            return "logs.jsonl", "\n".join(json.dumps(item, sort_keys=True) for item in payload)
-        return "logs.txt", "\n".join(self.messages)
+        match log_format:
+            case "json":
+                payload = [{"event": _log_event_name(message), "message": message} for message in self.messages]
+                return "logs.jsonl", "\n".join(json.dumps(item, sort_keys=True) for item in payload)
+            case _:
+                return "logs.txt", "\n".join(self.messages)
 
 
 def setup_project(
@@ -223,12 +225,13 @@ def _load_raw_config(config_path: Path) -> tuple[dict[str, object], str, str]:
     text = config_path.read_text(encoding="utf-8")
     suffix = config_path.suffix.lower()
     loaded: object
-    if suffix in {".yaml", ".yml"}:
-        loaded = yaml.safe_load(text) or {}
-    elif suffix == ".toml":
-        loaded = tomllib.loads(text)
-    else:  # pragma: no cover - supported formats already enforced in ConfigLoader
-        loaded = {}
+    match suffix:
+        case ".yaml" | ".yml":
+            loaded = yaml.safe_load(text) or {}
+        case ".toml":
+            loaded = tomllib.loads(text)
+        case _:  # pragma: no cover - supported formats already enforced in ConfigLoader
+            loaded = {}
     data = cast(dict[str, object], loaded) if isinstance(loaded, dict) else {}
     return data, text, suffix.lstrip(".") or "txt"
 
@@ -236,15 +239,15 @@ def _load_raw_config(config_path: Path) -> tuple[dict[str, object], str, str]:
 def _resolve_output_dir(
     raw_config: dict[str, object], config_output_dir: str, cli_output_dir: Path | None
 ) -> tuple[Path, str]:
-    if cli_output_dir is not None:
-        source = "cli"
-        selected = cli_output_dir
-    elif "output_dir" in raw_config:
-        source = "config"
-        selected = Path(config_output_dir)
-    else:
-        source = "default"
-        selected = Path(config_output_dir)
+    match cli_output_dir:
+        case Path() as selected:
+            source = "cli"
+        case _ if "output_dir" in raw_config:
+            source = "config"
+            selected = Path(config_output_dir)
+        case _:
+            source = "default"
+            selected = Path(config_output_dir)
     return selected.expanduser().resolve(), source
 
 

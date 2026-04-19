@@ -145,18 +145,20 @@ class OrthorhombicBox(BoxGeometry):
 
 def build_box_geometry(water_box: WaterBoxConfig) -> BoxGeometry:
     """Build a concrete geometry from water-box config."""
-    if water_box.shape == WaterBoxShape.CUBIC:
-        if water_box.side_length is None:
-            raise InvalidBoxDimensionsError("Cubic boxes require side_length.")
-        return CubicBox(side_length=water_box.side_length)
-    if water_box.shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
-        if water_box.edge_length is None:
-            raise InvalidBoxDimensionsError("Truncated octahedrons require edge_length.")
-        return TruncatedOctahedronBox(edge_length=water_box.edge_length)
-    if water_box.dimensions is None:
-        raise InvalidBoxDimensionsError("Orthorhombic boxes require dimensions.")
-    x, y, z = water_box.dimensions
-    return OrthorhombicBox(x=x, y=y, z=z)
+    match water_box.shape:
+        case WaterBoxShape.CUBIC:
+            if water_box.side_length is None:
+                raise InvalidBoxDimensionsError("Cubic boxes require side_length.")
+            return CubicBox(side_length=water_box.side_length)
+        case WaterBoxShape.TRUNCATED_OCTAHEDRON:
+            if water_box.edge_length is None:
+                raise InvalidBoxDimensionsError("Truncated octahedrons require edge_length.")
+            return TruncatedOctahedronBox(edge_length=water_box.edge_length)
+        case _:
+            if water_box.dimensions is None:
+                raise InvalidBoxDimensionsError("Orthorhombic boxes require dimensions.")
+            x, y, z = water_box.dimensions
+            return OrthorhombicBox(x=x, y=y, z=z)
 
 
 class ProteinExtents(NamedTuple):
@@ -238,17 +240,19 @@ def compute_box_from_protein(extents: ProteinExtents, water_box: WaterBoxConfig)
         A geometry instance sized to enclose the protein with the requested padding.
     """
     padding = water_box.auto_box_padding
-    if water_box.shape == WaterBoxShape.CUBIC:
-        side = max(extents.x, extents.y, extents.z) + 2.0 * padding
-        return CubicBox(side_length=side)
-    if water_box.shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
-        edge = max(extents.x, extents.y, extents.z) + 2.0 * padding
-        return TruncatedOctahedronBox(edge_length=edge)
-    return OrthorhombicBox(
-        x=extents.x + 2.0 * padding,
-        y=extents.y + 2.0 * padding,
-        z=extents.z + 2.0 * padding,
-    )
+    match water_box.shape:
+        case WaterBoxShape.CUBIC:
+            side = max(extents.x, extents.y, extents.z) + 2.0 * padding
+            return CubicBox(side_length=side)
+        case WaterBoxShape.TRUNCATED_OCTAHEDRON:
+            edge = max(extents.x, extents.y, extents.z) + 2.0 * padding
+            return TruncatedOctahedronBox(edge_length=edge)
+        case _:
+            return OrthorhombicBox(
+                x=extents.x + 2.0 * padding,
+                y=extents.y + 2.0 * padding,
+                z=extents.z + 2.0 * padding,
+            )
 
 
 def compute_water_box_volume(pdb_path: Path | str, water_box: WaterBoxConfig) -> float:

@@ -37,17 +37,18 @@ class AmberEngine(Engine):
         geometry = self.get_box_geometry(config)
         cutoff, spacing = self.get_cutoff_spacing(config)
         remarks = "\n".join(f"# {line}" for line in geometry.generate_pdb_remarks())
-        if geometry.name == "cubic":
-            solvation = f"solvatebox mol {config.engine.water_model.upper()}BOX {config.water_box.side_length:.3f}"
-        elif geometry.name == "truncated_octahedron":
-            solvation = f"solvateoct mol {config.engine.water_model.upper()}BOX {config.water_box.edge_length:.3f}"
-        else:
-            x, y, z = geometry.dimensions
-            max_dim = max(x, y, z)
-            solvation = (
-                f"solvatebox mol {config.engine.water_model.upper()}BOX {max_dim:.3f}\n"
-                f"setBox mol centers {{{x:.3f} {y:.3f} {z:.3f}}}"
-            )
+        match geometry.name:
+            case "cubic":
+                solvation = f"solvatebox mol {config.engine.water_model.upper()}BOX {config.water_box.side_length:.3f}"
+            case "truncated_octahedron":
+                solvation = f"solvateoct mol {config.engine.water_model.upper()}BOX {config.water_box.edge_length:.3f}"
+            case _:
+                x, y, z = geometry.dimensions
+                max_dim = max(x, y, z)
+                solvation = (
+                    f"solvatebox mol {config.engine.water_model.upper()}BOX {max_dim:.3f}\n"
+                    f"setBox mol centers {{{x:.3f} {y:.3f} {z:.3f}}}"
+                )
         ion_commands = self._build_ion_commands(config, geometry.volume)
         return (
             f"source leaprc.protein.{config.engine.force_field}\n"
