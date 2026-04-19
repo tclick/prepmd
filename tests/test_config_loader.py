@@ -52,6 +52,33 @@ def test_load_config_with_truncated_octahedron_water_box(tmp_path: Path) -> None
     assert config.water_box.edge_length == 10.0
 
 
+def test_load_config_with_ionized_water_box(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        (
+            "project_name: demo\n"
+            "protein:\n"
+            "  pdb_file: /tmp/input.pdb\n"
+            "water_box:\n"
+            "  shape: cubic\n"
+            "  side_length: 60.0\n"
+            "  include_ions: true\n"
+            "  neutralize_protein: true\n"
+            "  ion_concentration_molar: 0.2\n"
+            "  cation: K+\n"
+            "  anion: Cl-\n"
+        ),
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader().load_project_config(config_path)
+    assert config.water_box.include_ions
+    assert config.water_box.neutralize_protein
+    assert config.water_box.ion_concentration_molar == 0.2
+    assert config.water_box.cation == "K+"
+    assert config.water_box.anion == "Cl-"
+
+
 def test_load_config_rejects_both_pdb_id_and_pdb_file(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(

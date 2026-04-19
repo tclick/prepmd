@@ -14,6 +14,8 @@ from prepmd.cli.commands.init import InitFormat, default_output_path, render_tem
 from prepmd.cli.commands.setup import setup_project
 from prepmd.config.loader import ConfigLoader
 from prepmd.config.models import (
+    AnionType,
+    CationType,
     EngineConfig,
     EngineName,
     ProjectConfig,
@@ -30,6 +32,8 @@ from prepmd.utils.logging import configure_logging
 LICENSE_TEXT = "GNU GPL-3.0-or-later"
 SUPPORTED_ENGINES = [e.value for e in EngineName]
 SUPPORTED_BOX_SHAPES = [s.value for s in WaterBoxShape]
+SUPPORTED_CATIONS = [ion.value for ion in CationType]
+SUPPORTED_ANIONS = [ion.value for ion in AnionType]
 console = Console()
 PROJECT_NAME_OPTIONAL = typer.Option(None, help="Project name.")
 OUTPUT_DIR_OPTIONAL = typer.Option(None, help="Output directory.")
@@ -44,6 +48,23 @@ BOX_SIDE_LENGTH_OPTION = typer.Option(None, min=0.1, help="Water box side length
 BOX_EDGE_LENGTH_OPTION = typer.Option(None, min=0.1, help="Water box edge length in Å (truncated octahedron).")
 BOX_DIMENSIONS_OPTION = typer.Option(None, help="Water box dimensions X Y Z in Å (orthorhombic).")
 AUTO_BOX_PADDING_OPTION = typer.Option(None, min=0.1, help="Automatic box padding in Å (default 10.0).")
+INCLUDE_IONS_OPTION = typer.Option(
+    None,
+    "--include-ions/--no-include-ions",
+    help="Include ions in the solvated box.",
+)
+NEUTRALIZE_PROTEIN_OPTION = typer.Option(
+    None,
+    "--neutralize-protein/--no-neutralize-protein",
+    help="Neutralize protein net charge with counterions.",
+)
+ION_CONCENTRATION_OPTION = typer.Option(
+    None,
+    min=0.001,
+    help="Target ion concentration in mol/L when ions are included (default 0.15).",
+)
+ION_CATION_OPTION = typer.Option(None, help=f"Cation species ({', '.join(SUPPORTED_CATIONS)}).")
+ION_ANION_OPTION = typer.Option(None, help=f"Anion species ({', '.join(SUPPORTED_ANIONS)}).")
 AUTO_BOX_OPTION = typer.Option(
     False,
     "--auto-box/--no-auto-box",
@@ -221,6 +242,11 @@ def prepare(
     box_edge_length: float | None = BOX_EDGE_LENGTH_OPTION,
     box_dimensions: tuple[float, float, float] | None = BOX_DIMENSIONS_OPTION,
     auto_box_padding: float | None = AUTO_BOX_PADDING_OPTION,
+    include_ions: bool | None = INCLUDE_IONS_OPTION,
+    neutralize_protein: bool | None = NEUTRALIZE_PROTEIN_OPTION,
+    ion_concentration: float | None = ION_CONCENTRATION_OPTION,
+    ion_cation: CationType | None = ION_CATION_OPTION,
+    ion_anion: AnionType | None = ION_ANION_OPTION,
     auto_box: bool = AUTO_BOX_OPTION,
     pdb_file: Path | None = PDB_FILE_OPTION,
     pdb_id: str | None = PDB_ID_OPTION,
@@ -284,6 +310,16 @@ def prepare(
             merged_config.water_box.shape = WaterBoxShape(box_shape.lower())
         if auto_box_padding is not None:
             merged_config.water_box.auto_box_padding = auto_box_padding
+        if include_ions is not None:
+            merged_config.water_box.include_ions = include_ions
+        if neutralize_protein is not None:
+            merged_config.water_box.neutralize_protein = neutralize_protein
+        if ion_concentration is not None:
+            merged_config.water_box.ion_concentration_molar = ion_concentration
+        if ion_cation is not None:
+            merged_config.water_box.cation = ion_cation
+        if ion_anion is not None:
+            merged_config.water_box.anion = ion_anion
         if box_side_length is not None:
             merged_config.water_box.shape = WaterBoxShape.CUBIC
             merged_config.water_box.side_length = box_side_length
