@@ -27,6 +27,11 @@ def test_validate_pdb_id_rejects_invalid_values(pdb_id: str) -> None:
         validate_pdb_id(pdb_id)
 
 
+def test_validate_pdb_id_rejects_unicode_chars_that_uppercase_to_ascii() -> None:
+    with pytest.raises(PDBValidationError):
+        validate_pdb_id("\u0131\u0131\u0131\u0131")
+
+
 def test_get_or_download_uses_cached_file(tmp_path: Path) -> None:
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()
