@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from prepmd.config.models import ProjectConfig, ProteinConfig, WaterBoxConfig
+from prepmd.config.models import AnionType, CationType, ProjectConfig, ProteinConfig, WaterBoxConfig, WaterBoxShape
 from prepmd.engines.base import EngineCapabilities
 from prepmd.engines.factory import EngineFactory, _build_engine_registry
 from prepmd.engines.plugins.amber.engine import AmberEngine as PluginAmberEngine
@@ -83,13 +83,13 @@ def test_amber_prepare_includes_ion_commands_when_enabled() -> None:
         project_name="ions-demo",
         protein=ProteinConfig(pdb_file="/tmp/input.pdb"),
         water_box=WaterBoxConfig(
-            shape="cubic",
+            shape=WaterBoxShape.CUBIC,
             side_length=60.0,
             include_ions=True,
             neutralize_protein=True,
             ion_concentration_molar=0.2,
-            cation="K+",
-            anion="Cl-",
+            cation=CationType.K,
+            anion=AnionType.CL,
         ),
     )
     engine = EngineFactory.create("amber")

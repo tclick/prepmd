@@ -74,7 +74,7 @@ class AmberEngine(Engine):
             lines.append(f"addions2 mol {cation} 0 {anion} 0")
 
         concentration = config.water_box.ion_concentration_molar
-        ion_pairs = int(round(volume_a3 * concentration * AVOGADRO_PER_A3_FACTOR))
+        ion_pairs = round(volume_a3 * concentration * AVOGADRO_PER_A3_FACTOR)
         if ion_pairs > 0:
             lines.append(f"addionsrand mol {cation} {ion_pairs} {anion} {ion_pairs}")
         else:

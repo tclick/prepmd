@@ -1,5 +1,24 @@
 {
   "$defs": {
+    "AnionType": {
+      "description": "Supported anion species for water-box ionization.",
+      "enum": [
+        "Cl-"
+      ],
+      "title": "AnionType",
+      "type": "string"
+    },
+    "CationType": {
+      "description": "Supported cation species for water-box ionization.",
+      "enum": [
+        "Na+",
+        "K+",
+        "Mg2+",
+        "Ca2+"
+      ],
+      "title": "CationType",
+      "type": "string"
+    },
     "EngineConfig": {
       "description": "Engine selection and options.\n\nParameters\n----------\nname : EngineName\n    Simulation engine name (Amber, NAMD, Gromacs, CHARMM, OpenMM).\nforce_field : str\n    Selected force field (default: ``ff19sb``).\nwater_model : str\n    Selected water model (default: ``OPC3``).\noptions : dict[str, str]\n    Additional engine-specific options.",
       "properties": {
@@ -178,11 +197,19 @@
     "WaterBoxConfig": {
       "description": "Water-box geometry configuration.",
       "properties": {
+        "anion": {
+          "$ref": "#/$defs/AnionType",
+          "default": "Cl-"
+        },
         "auto_box_padding": {
           "default": 10.0,
           "exclusiveMinimum": 0.0,
           "title": "Auto Box Padding",
           "type": "number"
+        },
+        "cation": {
+          "$ref": "#/$defs/CationType",
+          "default": "Na+"
         },
         "dimensions": {
           "anyOf": [
@@ -220,6 +247,22 @@
           ],
           "default": null,
           "title": "Edge Length"
+        },
+        "include_ions": {
+          "default": false,
+          "title": "Include Ions",
+          "type": "boolean"
+        },
+        "ion_concentration_molar": {
+          "default": 0.15,
+          "exclusiveMinimum": 0.0,
+          "title": "Ion Concentration Molar",
+          "type": "number"
+        },
+        "neutralize_protein": {
+          "default": false,
+          "title": "Neutralize Protein",
+          "type": "boolean"
         },
         "shape": {
           "$ref": "#/$defs/WaterBoxShape",
