@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from prepmd.config.models import ProjectConfig, ProteinConfig
+from prepmd.config.models import ProjectConfig, ProteinConfig, WaterBoxConfig
 from prepmd.engines.base import EngineCapabilities
 from prepmd.engines.factory import EngineFactory, _build_engine_registry
 from prepmd.engines.plugins.amber.engine import AmberEngine as PluginAmberEngine
@@ -76,3 +76,23 @@ def test_builtin_engine_capabilities_are_exposed(engine_name: str, ensembles: se
     assert set(capabilities.supported_box_shapes) == box_shapes
     assert engine.supported_box_shapes == set(capabilities.supported_box_shapes)
     assert engine.supported_box_shapes == box_shapes
+
+
+def test_amber_prepare_includes_ion_commands_when_enabled() -> None:
+    config = ProjectConfig(
+        project_name="ions-demo",
+        protein=ProteinConfig(pdb_file="/tmp/input.pdb"),
+        water_box=WaterBoxConfig(
+            shape="cubic",
+            side_length=60.0,
+            include_ions=True,
+            neutralize_protein=True,
+            ion_concentration_molar=0.2,
+            cation="K+",
+            anion="Cl-",
+        ),
+    )
+    engine = EngineFactory.create("amber")
+    prepare_text = engine.prepare_from_pdb("/tmp/input.pdb", config)
+    assert "addions2 mol K+ 0 Cl- 0" in prepare_text
+    assert "addionsrand mol K+ 26 Cl- 26" in prepare_text

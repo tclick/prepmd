@@ -57,6 +57,7 @@ Water-box geometry can be selected from the CLI:
 prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --box-shape cubic --box-side-length 12.0
 prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --box-shape truncated_octahedron --box-edge-length 10.0
 prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --box-shape orthorhombic --box-dimensions 12 12 15
+prepmd prepare --project-name demo --output-dir . --pdb-file /path/to/input.pdb --include-ions --neutralize-protein --ion-concentration 0.15 --ion-cation Na+ --ion-anion Cl-
 ```
 
 Download directly from the Protein Data Bank (cached locally):
@@ -102,6 +103,11 @@ offline = true
 [water_box]
 shape = "truncated_octahedron"
 edge_length = 10.0
+include_ions = true
+neutralize_protein = true
+ion_concentration_molar = 0.15
+cation = "Na+"
+anion = "Cl-"
 ```
 
 ## Development workflow

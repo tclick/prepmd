@@ -32,6 +32,7 @@ def test_water_box_config_widget_modes_and_metrics() -> None:
     widget = WaterBoxConfigWidget()
     value = widget.get_value()
     assert value.shape == "cubic"
+    assert value.ion_concentration_molar == pytest.approx(0.15)
     assert "Volume:" in widget.volume_text()
 
     widget.set_shape(WaterBoxShape.ORTHORHOMBIC)
@@ -116,3 +117,22 @@ def test_water_box_set_pdb_path() -> None:
 
     widget.set_pdb_path(None)
     assert widget._pdb_line.text() == ""
+
+
+def test_water_box_ion_options() -> None:
+    _make_app()
+    from prepmd.gui.widgets.water_box_config import WaterBoxConfigWidget
+
+    widget = WaterBoxConfigWidget()
+    widget._include_ions_check.setChecked(True)
+    widget._neutralize_protein_check.setChecked(True)
+    widget._ion_concentration_spin.setValue(0.2)
+    widget._cation.setCurrentText("K+")
+    widget._anion.setCurrentText("Cl-")
+
+    value = widget.get_value()
+    assert value.include_ions
+    assert value.neutralize_protein
+    assert value.ion_concentration_molar == pytest.approx(0.2)
+    assert value.cation == "K+"
+    assert value.anion == "Cl-"

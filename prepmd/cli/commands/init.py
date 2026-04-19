@@ -43,6 +43,11 @@ engine:
 water_box:
   shape: orthorhombic
   dimensions: [60.0, 60.0, 80.0]
+  include_ions: true
+  neutralize_protein: true
+  ion_concentration_molar: 0.15
+  cation: Na+
+  anion: Cl-
 """
 
 _TOML_TEMPLATE = """# prepmd configuration template
@@ -72,6 +77,11 @@ water_model = "OPC"
 [water_box]
 shape = "orthorhombic"
 dimensions = [60.0, 60.0, 80.0]
+include_ions = true
+neutralize_protein = true
+ion_concentration_molar = 0.15
+cation = "Na+"
+anion = "Cl-"
 """
 
 

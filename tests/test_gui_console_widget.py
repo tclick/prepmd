@@ -118,3 +118,43 @@ def test_console_widget_run_prepare_cli_supports_variant_pdb_ids(monkeypatch: py
         "--holo-pdb-id",
         "2xyz",
     ]
+
+
+def test_console_widget_run_prepare_cli_supports_ion_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    qt_widgets = pytest.importorskip("PyQt6.QtWidgets", exc_type=ImportError)
+    from prepmd.gui import ConsoleWidget
+
+    app = qt_widgets.QApplication.instance()
+    if app is None:
+        app = qt_widgets.QApplication([])
+
+    captured: list[str] = []
+    widget = ConsoleWidget()
+
+    def fake_run_cli(arguments: list[str]) -> None:
+        captured[:] = arguments
+
+    monkeypatch.setattr(widget, "run_cli", fake_run_cli)
+
+    widget.run_prepare_cli(
+        project_name="gui-ions",
+        include_ions=True,
+        neutralize_protein=True,
+        ion_concentration=0.2,
+        ion_cation="K+",
+        ion_anion="Cl-",
+    )
+
+    assert captured == [
+        "prepare",
+        "--project-name",
+        "gui-ions",
+        "--include-ions",
+        "--neutralize-protein",
+        "--ion-concentration",
+        "0.2",
+        "--ion-cation",
+        "K+",
+        "--ion-anion",
+        "Cl-",
+    ]

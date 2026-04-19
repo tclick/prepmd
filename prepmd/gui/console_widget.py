@@ -55,6 +55,11 @@ class ConsoleWidget(QPlainTextEdit):
         holo_pdb: str | None = None,
         apo_pdb_id: str | None = None,
         holo_pdb_id: str | None = None,
+        include_ions: bool | None = None,
+        neutralize_protein: bool | None = None,
+        ion_concentration: float | None = None,
+        ion_cation: str | None = None,
+        ion_anion: str | None = None,
     ) -> None:
         """Run ``prepmd prepare`` via CLI subprocess mode."""
         arguments: list[str] = ["prepare", "--project-name", project_name]
@@ -72,6 +77,16 @@ class ConsoleWidget(QPlainTextEdit):
             arguments.extend(["--apo-pdb-id", apo_pdb_id])
         if holo_pdb_id is not None:
             arguments.extend(["--holo-pdb-id", holo_pdb_id])
+        if include_ions is not None:
+            arguments.append("--include-ions" if include_ions else "--no-include-ions")
+        if neutralize_protein is not None:
+            arguments.append("--neutralize-protein" if neutralize_protein else "--no-neutralize-protein")
+        if ion_concentration is not None:
+            arguments.extend(["--ion-concentration", f"{ion_concentration}"])
+        if ion_cation is not None:
+            arguments.extend(["--ion-cation", ion_cation])
+        if ion_anion is not None:
+            arguments.extend(["--ion-anion", ion_anion])
         self.run_cli(arguments)
 
     def set_progress_callback(self, callback: ProgressCallback | None) -> None:

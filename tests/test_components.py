@@ -838,6 +838,41 @@ def test_cli_prepare_with_orthorhombic_box_dimensions(tmp_path: Path) -> None:
     assert "-box 12.000 12.000 15.000 -bt triclinic" in prep_file.read_text(encoding="utf-8")
 
 
+def test_cli_prepare_adds_ions_and_neutralization_for_amber(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare",
+            "--project-name",
+            "prep-ions",
+            "--output-dir",
+            str(tmp_path),
+            "--pdb-file",
+            str(tmp_path / "input.pdb"),
+            "--engine",
+            "amber",
+            "--box-shape",
+            "cubic",
+            "--box-side-length",
+            "60",
+            "--include-ions",
+            "--neutralize-protein",
+            "--ion-concentration",
+            "0.2",
+            "--ion-cation",
+            "K+",
+            "--ion-anion",
+            "Cl-",
+        ],
+    )
+    assert result.exit_code == 0
+    prep_file = tmp_path / "prep-ions" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in"
+    text = prep_file.read_text(encoding="utf-8")
+    assert "addions2 mol K+ 0 Cl- 0" in text
+    assert "addionsrand mol K+ 26 Cl- 26" in text
+
+
 def test_cli_prepare_requires_project_name_without_config() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["prepare"])

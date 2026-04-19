@@ -26,6 +26,21 @@ class WaterBoxShape(StrEnum):
     ORTHORHOMBIC = "orthorhombic"
 
 
+class CationType(StrEnum):
+    """Supported cation species for water-box ionization."""
+
+    NA = "Na+"
+    K = "K+"
+    MG = "Mg2+"
+    CA = "Ca2+"
+
+
+class AnionType(StrEnum):
+    """Supported anion species for water-box ionization."""
+
+    CL = "Cl-"
+
+
 type EnsembleType = Literal["NVT", "NPT", "NVE"]
 
 
@@ -126,6 +141,11 @@ class WaterBoxConfig(BaseModel):
     edge_length: float | None = None
     dimensions: tuple[float, float, float] | None = None
     auto_box_padding: float = Field(default=10.0, gt=0.0)
+    include_ions: bool = False
+    neutralize_protein: bool = False
+    ion_concentration_molar: float = Field(default=0.15, gt=0.0)
+    cation: CationType = CationType.NA
+    anion: AnionType = AnionType.CL
 
     @model_validator(mode="after")
     def validate_shape_dimensions(self) -> "WaterBoxConfig":
@@ -154,6 +174,13 @@ class WaterBoxConfig(BaseModel):
             self.dimensions = (self.auto_box_padding, self.auto_box_padding, self.auto_box_padding)
         if any(value <= 0.0 for value in self.dimensions):
             raise ValueError("Orthorhombic dimensions must all be positive.")
+        return self
+
+    @model_validator(mode="after")
+    def normalize_ion_settings(self) -> "WaterBoxConfig":
+        """Normalize ion configuration options."""
+        if self.neutralize_protein:
+            self.include_ions = True
         return self
 
 
