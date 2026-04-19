@@ -38,6 +38,8 @@ class ProteinConfig(BaseModel):
         Names of protein variants to prepare (for example: ``apo`` and ``holo``).
     pdb_files : dict[str, str | None]
         Optional mapping of variant name to the variant-specific input PDB path.
+    pdb_ids : dict[str, str | None]
+        Optional mapping of variant name to the variant-specific RCSB PDB ID.
     structure_format : str
         Structure file format for remote downloads: ``"pdb"`` (default) or
         ``"mmcif"``.  Local files supplied via *pdb_file* or *pdb_files* are
@@ -46,6 +48,7 @@ class ProteinConfig(BaseModel):
 
     variants: list[str] = Field(default_factory=lambda: ["apo", "holo"])
     pdb_files: dict[str, str | None] = Field(default_factory=dict)
+    pdb_ids: dict[str, str | None] = Field(default_factory=dict)
     pdb_file: str | None = None
     pdb_id: str | None = None
     pdb_cache_dir: str | None = None
@@ -62,8 +65,9 @@ class ProteinConfig(BaseModel):
         :class:`prepmd.config.validators.pipeline.ValidationPipeline` runs.
         """
         has_variant_local = any(path for path in self.pdb_files.values() if path)
+        has_variant_remote = any(pdb_id for pdb_id in self.pdb_ids.values() if pdb_id)
         has_local = self.pdb_file is not None or has_variant_local
-        has_remote = self.pdb_id is not None
+        has_remote = self.pdb_id is not None or has_variant_remote
         if has_local and has_remote:
             raise ValueError("Specify either a local PDB file or a PDB ID, not both.")
         return self

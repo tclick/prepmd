@@ -5,7 +5,7 @@ import pytest
 
 from prepmd.config.models import ProjectConfig, ProteinConfig
 from prepmd.config.validators.pipeline import ValidationPipeline
-from prepmd.core.run import apply_plan, build_plan, run_setup
+from prepmd.core.run import apply_plan, build_plan, render_prepare_files, run_setup
 from prepmd.exceptions import ValidationErrorGroup
 
 
@@ -84,3 +84,23 @@ def test_validation_pipeline_raises_exception_group_for_multiple_errors(tmp_path
     messages = [str(error) for error in exc_info.value.exceptions]
     assert any("temperature must be between 0 and 1000 K" in msg for msg in messages)
     assert any("replicas must be >= 1" in msg for msg in messages)
+
+
+def test_render_prepare_files_uses_variant_pdb_id_references_without_download(tmp_path: Path) -> None:
+    config = ProjectConfig(
+        project_name="variant-id-demo",
+        output_dir=str(tmp_path),
+        protein=ProteinConfig(
+            variants=["apo", "holo"],
+            pdb_ids={"apo": "1abc", "holo": "2xyz"},
+        ),
+    )
+    plan = build_plan(config)
+    rendered = render_prepare_files(plan, download_remote_pdb=False)
+    payload = {planned.path.as_posix(): planned.content for planned in rendered}
+    apo_path = (tmp_path / "variant-id-demo" / "05_simulations" / "apo" / "replica_001" / "amber_prepare.in").as_posix()
+    holo_path = (
+        tmp_path / "variant-id-demo" / "05_simulations" / "holo" / "replica_001" / "amber_prepare.in"
+    ).as_posix()
+    assert "loadpdb pdb:1ABC" in payload[apo_path]
+    assert "loadpdb pdb:2XYZ" in payload[holo_path]

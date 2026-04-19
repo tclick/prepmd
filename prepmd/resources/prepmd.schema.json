@@ -49,7 +49,7 @@
       "type": "string"
     },
     "ProteinConfig": {
-      "description": "Protein-level simulation variants.\n\nParameters\n----------\nvariants : list[str]\n    Names of protein variants to prepare (for example: ``apo`` and ``holo``).\npdb_files : dict[str, str | None]\n    Optional mapping of variant name to the variant-specific input PDB path.\nstructure_format : str\n    Structure file format for remote downloads: ``\"pdb\"`` (default) or\n    ``\"mmcif\"``.  Local files supplied via *pdb_file* or *pdb_files* are\n    auto-detected from their file extension and this field is ignored.",
+      "description": "Protein-level simulation variants.\n\nParameters\n----------\nvariants : list[str]\n    Names of protein variants to prepare (for example: ``apo`` and ``holo``).\npdb_files : dict[str, str | None]\n    Optional mapping of variant name to the variant-specific input PDB path.\npdb_ids : dict[str, str | None]\n    Optional mapping of variant name to the variant-specific RCSB PDB ID.\nstructure_format : str\n    Structure file format for remote downloads: ``\"pdb\"`` (default) or\n    ``\"mmcif\"``.  Local files supplied via *pdb_file* or *pdb_files* are\n    auto-detected from their file extension and this field is ignored.",
       "properties": {
         "offline": {
           "default": false,
@@ -105,6 +105,20 @@
           ],
           "default": null,
           "title": "Pdb Id"
+        },
+        "pdb_ids": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Pdb Ids",
+          "type": "object"
         },
         "structure_format": {
           "default": "pdb",

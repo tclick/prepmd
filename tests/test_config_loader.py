@@ -63,6 +63,29 @@ def test_load_config_rejects_both_pdb_id_and_pdb_file(tmp_path: Path) -> None:
         ConfigLoader().load_project_config(config_path)
 
 
+def test_load_config_rejects_both_variant_pdb_id_and_pdb_file(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        "project_name: demo\nprotein:\n  pdb_file: /tmp/input.pdb\n  pdb_ids:\n    apo: 1abc\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PDBMutualExclusivityError):
+        ConfigLoader().load_project_config(config_path)
+
+
+def test_load_config_accepts_variant_pdb_ids(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        "project_name: demo\nprotein:\n  variants: [apo, holo]\n  pdb_ids:\n    apo: 1abc\n    holo: 2xyz\n",
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader().load_project_config(config_path)
+
+    assert config.protein.pdb_ids == {"apo": "1abc", "holo": "2xyz"}
+
+
 def test_load_config_requires_pdb_input_method(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("project_name: demo\n", encoding="utf-8")
