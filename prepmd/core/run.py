@@ -410,30 +410,6 @@ def _plan_protocol_directories(
             files.append(PlannedFile(stage_dir / "README.md", _render_subdirectory_readme(stage.notes)))
 
 
-def _resolve_shared_pdb_file(config: ProjectConfig, *, offline: bool = False) -> str | None:
-    protein = config.protein
-    if protein.pdb_file is not None:
-        return protein.pdb_file
-    if protein.pdb_id is None:
-        return None
-    cache_dir = Path(protein.pdb_cache_dir) if protein.pdb_cache_dir is not None else None
-    downloaded = PDBHandler(
-        cache_dir=cache_dir,
-        offline=offline or protein.offline,
-        structure_format=protein.structure_format,
-    ).get_or_download(protein.pdb_id)
-    return str(downloaded)
-
-
-def _resolve_plan_pdb_reference(config: ProjectConfig) -> str | None:
-    protein = config.protein
-    if protein.pdb_file is not None:
-        return protein.pdb_file
-    if protein.pdb_id is not None:
-        return f"pdb:{protein.pdb_id.upper()}"
-    return None
-
-
 def _resolve_variant_pdb_inputs(
     config: ProjectConfig, *, download_remote_pdb: bool = True, offline: bool = False
 ) -> dict[str, str | None]:
