@@ -65,7 +65,8 @@ def test_apply_plan_creates_expected_output(tmp_path: Path) -> None:
         / "05_simulations"
         / "apo"
         / "replica_001"
-        / "05_post_processing"
+        / "02_scripts"
+        / "post_processing"
         / "03_merge_production.cpptraj"
     ).exists()
     assert (
@@ -73,7 +74,8 @@ def test_apply_plan_creates_expected_output(tmp_path: Path) -> None:
         / "05_simulations"
         / "apo"
         / "replica_001"
-        / "06_analysis"
+        / "02_scripts"
+        / "analysis"
         / "03_radius_of_gyration.cpptraj"
     ).exists()
     assert reporter.starts == [plan.total_steps]
