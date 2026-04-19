@@ -239,15 +239,15 @@ def _load_raw_config(config_path: Path) -> tuple[dict[str, object], str, str]:
 def _resolve_output_dir(
     raw_config: dict[str, object], config_output_dir: str, cli_output_dir: Path | None
 ) -> tuple[Path, str]:
-    match cli_output_dir:
-        case Path() as selected:
-            source = "cli"
-        case _ if "output_dir" in raw_config:
-            source = "config"
-            selected = Path(config_output_dir)
-        case _:
-            source = "default"
-            selected = Path(config_output_dir)
+    if cli_output_dir is not None:
+        source = "cli"
+        selected = cli_output_dir
+    elif "output_dir" in raw_config:
+        source = "config"
+        selected = Path(config_output_dir)
+    else:
+        source = "default"
+        selected = Path(config_output_dir)
     return selected.expanduser().resolve(), source
 
 
