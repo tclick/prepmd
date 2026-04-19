@@ -80,10 +80,7 @@ class StructureBuilder(SimulationPlan):
                 self._results = RunResult(steps=steps)
                 raise StructureBuildError(f"Build step '{step_name}' failed: {exc}") from exc
         self._results = RunResult(steps=steps)
-        logger.success(
-            f"Project structure created: {self.root_dir} "
-            f"({len(self._created_dirs)} directories)"
-        )
+        logger.success(f"Project structure created: {self.root_dir} ({len(self._created_dirs)} directories)")
         return self.root_dir
 
     # ------------------------------------------------------------------
@@ -160,9 +157,7 @@ class StructureBuilder(SimulationPlan):
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _create_protocol_stage_dirs(
-        self, replica_dir: Path, protocol: Mapping[str, list[ProtocolStage]]
-    ) -> None:
+    def _create_protocol_stage_dirs(self, replica_dir: Path, protocol: Mapping[str, list[ProtocolStage]]) -> None:
         """Create stage directories driven by the protocol definition.
 
         For phases that contain a single stage whose name matches the phase

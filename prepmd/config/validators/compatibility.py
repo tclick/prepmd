@@ -22,9 +22,7 @@ class CompatibilityValidator(BaseValidator):
         if allowed is None:
             raise ValidationError(f"unsupported engine: {config.engine.name}")
         if config.simulation.ensemble not in allowed:
-            raise ValidationError(
-                f"ensemble {config.simulation.ensemble} is not supported by {config.engine.name}"
-            )
+            raise ValidationError(f"ensemble {config.simulation.ensemble} is not supported by {config.engine.name}")
         engine = EngineFactory.create(config.engine.name)
         if not engine.supports_box_shape(config.water_box.shape):
             raise BoxShapeNotSupportedError(

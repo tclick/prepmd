@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import sqrt
+from pathlib import Path
+from typing import NamedTuple
+
+from Bio.PDB import PDBParser
 
 from prepmd.config.models import WaterBoxConfig, WaterBoxShape
-from prepmd.exceptions import InvalidBoxDimensionsError
+from prepmd.exceptions import InvalidBoxDimensionsError, PDBParseError
 
 
 class BoxGeometry(ABC):
@@ -150,3 +154,112 @@ def build_box_geometry(water_box: WaterBoxConfig) -> BoxGeometry:
         raise InvalidBoxDimensionsError("Orthorhombic boxes require dimensions.")
     x, y, z = water_box.dimensions
     return OrthorhombicBox(x=x, y=y, z=z)
+
+
+class ProteinExtents(NamedTuple):
+    """Bounding-box extents (span) of a protein structure in Angstroms."""
+
+    x: float
+    y: float
+    z: float
+
+
+def protein_extents_from_pdb(pdb_path: Path | str) -> ProteinExtents:
+    """Parse *pdb_path* and return the bounding-box extents of the structure.
+
+    The extents are the span (max − min) along each Cartesian axis across all
+    ATOM/HETATM records in the file.
+
+    Parameters
+    ----------
+    pdb_path:
+        Path to the PDB file to parse.
+
+    Returns
+    -------
+    ProteinExtents
+        Named tuple of (x, y, z) span values in Angstroms.
+
+    Raises
+    ------
+    PDBParseError
+        When the file cannot be parsed or contains no atomic coordinates.
+    """
+    path = Path(pdb_path)
+    parser = PDBParser(QUIET=True)
+    try:
+        structure = parser.get_structure("protein", str(path))
+    except Exception as exc:
+        raise PDBParseError(f"Failed to parse PDB file {path}: {exc}") from exc
+
+    coords = [atom.coord for atom in structure.get_atoms()]
+    if not coords:
+        raise PDBParseError(f"No atomic coordinates found in PDB file: {path}")
+
+    xs = [c[0] for c in coords]
+    ys = [c[1] for c in coords]
+    zs = [c[2] for c in coords]
+    return ProteinExtents(
+        x=float(max(xs) - min(xs)),
+        y=float(max(ys) - min(ys)),
+        z=float(max(zs) - min(zs)),
+    )
+
+
+def compute_box_from_protein(extents: ProteinExtents, water_box: WaterBoxConfig) -> BoxGeometry:
+    """Build a :class:`BoxGeometry` whose dimensions are derived from protein extents plus padding.
+
+    Parameters
+    ----------
+    extents:
+        Bounding-box extents of the protein (from :func:`protein_extents_from_pdb`).
+    water_box:
+        Water-box configuration supplying the box shape and ``auto_box_padding``.
+
+    Returns
+    -------
+    BoxGeometry
+        A geometry instance sized to enclose the protein with the requested padding.
+    """
+    padding = water_box.auto_box_padding
+    if water_box.shape == WaterBoxShape.CUBIC:
+        side = max(extents.x, extents.y, extents.z) + 2.0 * padding
+        return CubicBox(side_length=side)
+    if water_box.shape == WaterBoxShape.TRUNCATED_OCTAHEDRON:
+        edge = max(extents.x, extents.y, extents.z) + 2.0 * padding
+        return TruncatedOctahedronBox(edge_length=edge)
+    return OrthorhombicBox(
+        x=extents.x + 2.0 * padding,
+        y=extents.y + 2.0 * padding,
+        z=extents.z + 2.0 * padding,
+    )
+
+
+def compute_water_box_volume(pdb_path: Path | str, water_box: WaterBoxConfig) -> float:
+    """Return the water-box volume (Å³) for the given PDB file and box configuration.
+
+    The box dimensions are determined by the protein's bounding-box extents plus
+    twice the ``auto_box_padding`` on each relevant axis.
+
+    Parameters
+    ----------
+    pdb_path:
+        Path to the input PDB file.
+    water_box:
+        Water-box configuration (shape and padding).
+
+    Returns
+    -------
+    float
+        Water-box volume in cubic Angstroms.
+
+    Raises
+    ------
+    PDBParseError
+        When the PDB file cannot be parsed or contains no atoms.
+    InvalidBoxDimensionsError
+        When the computed dimensions are non-positive.
+    """
+    extents = protein_extents_from_pdb(pdb_path)
+    geometry = compute_box_from_protein(extents, water_box)
+    return geometry.volume

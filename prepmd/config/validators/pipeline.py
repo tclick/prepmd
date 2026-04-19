@@ -23,13 +23,17 @@ class ValidationPipeline:
     """
 
     def __init__(self, validators: list[BaseValidator] | None = None) -> None:
-        self._validators: list[BaseValidator] = validators if validators is not None else [
-            TemperatureValidator(),
-            PDBInputValidator(),
-            EnsembleValidator(),
-            RestraintValidator(),
-            CompatibilityValidator(),
-        ]
+        self._validators: list[BaseValidator] = (
+            validators
+            if validators is not None
+            else [
+                TemperatureValidator(),
+                PDBInputValidator(),
+                EnsembleValidator(),
+                RestraintValidator(),
+                CompatibilityValidator(),
+            ]
+        )
 
     def validate(self, config: ProjectConfig) -> None:
         """Run all validators in order; raise on the first failure."""
