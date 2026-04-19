@@ -34,8 +34,8 @@ TOP_LEVEL_STRUCTURE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("03_logs", ("simulation", "analysis", "errors")),
     ("04_analysis_templates", ("trajectory_processing", "all_atom", "fluctuation_analysis", "summary")),
 )
-POST_PROCESSING_DIR = "05_post_processing"
-ANALYSIS_DIR = "06_analysis"
+POST_PROCESSING_DIR = "02_scripts/post_processing"
+ANALYSIS_DIR = "02_scripts/analysis"
 BACKUP_DIR = "07_backup"
 STATE_VERSION = 1
 STATE_FILENAME = ".prepmd_state.json"
