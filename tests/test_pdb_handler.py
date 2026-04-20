@@ -186,8 +186,8 @@ def test_get_or_download_mmcif_skips_replace_when_paths_point_to_same_file(
     cache_dir.mkdir()
     cached = cache_dir / "1ABC.cif"
     downloaded = cache_dir / "1abc.cif"
-    cached.write_text("cached", encoding="utf-8")
     downloaded.write_text("downloaded", encoding="utf-8")
+    cached.hardlink_to(downloaded)
     handler = PDBHandler(cache_dir=cache_dir, retries=1, backoff_seconds=0.0, structure_format="mmcif")
     replaced = {"called": False}
 
@@ -201,20 +201,13 @@ def test_get_or_download_mmcif_skips_replace_when_paths_point_to_same_file(
     ) -> str:
         return str(downloaded)
 
-    original_samefile = Path.samefile
     original_replace = Path.replace
-
-    def fake_samefile(self: Path, other: Path) -> bool:
-        if self == downloaded and other == cached:
-            return True
-        return original_samefile(self, other)
 
     def track_replace(self: Path, target: Path) -> Path:
         replaced["called"] = True
         return original_replace(self, target)
 
     monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", fake_retrieve)
-    monkeypatch.setattr(Path, "samefile", fake_samefile)
     monkeypatch.setattr(Path, "replace", track_replace)
 
     path = handler.get_or_download("1abc")
