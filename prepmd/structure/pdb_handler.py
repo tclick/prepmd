@@ -104,7 +104,7 @@ class PDBHandler:
                             downloaded.replace(cached)
                     except FileNotFoundError:
                         downloaded.replace(cached)
-                logger.info(f"Downloaded PDB {normalized} to {cached}")
+                logger.info(f"Resolved PDB {normalized} at {cached}")
                 return cached
             except (OSError, RuntimeError, ValueError) as exc:
                 last_error = exc
