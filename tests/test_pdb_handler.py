@@ -187,7 +187,10 @@ def test_get_or_download_mmcif_skips_replace_when_paths_point_to_same_file(
     cached = cache_dir / "1ABC.cif"
     downloaded = cache_dir / "1abc.cif"
     downloaded.write_text("downloaded", encoding="utf-8")
-    cached.hardlink_to(downloaded)
+    try:
+        cached.hardlink_to(downloaded)
+    except OSError:
+        pytest.skip("Filesystem does not support creating hard links for same-file regression test.")
     handler = PDBHandler(cache_dir=cache_dir, retries=1, backoff_seconds=0.0, structure_format="mmcif")
     replaced = {"called": False}
 

@@ -97,7 +97,9 @@ class PDBHandler:
                 if downloaded != cached:
                     try:
                         if downloaded.samefile(cached):
-                            logger.debug(f"Downloaded path already matches cache target for {normalized}: {cached}")
+                            logger.debug(
+                                f"Downloaded path points to same file as cache target for {normalized}: {cached}"
+                            )
                         else:
                             downloaded.replace(cached)
                     except FileNotFoundError:
