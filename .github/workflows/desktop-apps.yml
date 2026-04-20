@@ -37,10 +37,9 @@ jobs:
       - name: Build app bundle (macOS)
         if: runner.os == 'macOS'
         run: |
-          pyinstaller --noconfirm --clean --windowed --name prepmd-gui --osx-bundle-identifier io.github.tclick.prepmdgui prepmd/gui/main.py
+          pyinstaller --noconfirm --clean --windowed --name prepmd-gui --osx-bundle-identifier io.github.tclick.prepmdgui --codesign-identity - prepmd/gui/main.py
           cd dist
-          codesign --force --deep --sign - prepmd-gui.app
-          codesign --verify --deep --strict --verbose=2 prepmd-gui.app
+          codesign --verify --strict --verbose=2 prepmd-gui.app
           ditto -c -k --sequesterRsrc --keepParent prepmd-gui.app prepmd-gui-macos.zip
 
       - name: Build app bundle (Windows)
