@@ -179,6 +179,46 @@ def test_get_or_download_mmcif_uses_correct_format(monkeypatch: pytest.MonkeyPat
     assert path == cache_dir / "1ABC.cif"
 
 
+def test_get_or_download_mmcif_skips_replace_when_paths_point_to_same_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    cached = cache_dir / "1ABC.cif"
+    downloaded = cache_dir / "1abc.cif"
+    downloaded.write_text("downloaded", encoding="utf-8")
+    try:
+        cached.hardlink_to(downloaded)
+    except OSError:
+        pytest.skip("Filesystem does not support creating hard links for same-file regression test.")
+    handler = PDBHandler(cache_dir=cache_dir, retries=1, backoff_seconds=0.0, structure_format="mmcif")
+    replaced = {"called": False}
+
+    def fake_retrieve(
+        self: Any,
+        pdb_code: str,
+        obsolete: bool,
+        pdir: str,
+        file_format: str,
+        overwrite: bool,
+    ) -> str:
+        return str(downloaded)
+
+    original_replace = Path.replace
+
+    def track_replace(self: Path, target: Path) -> Path:
+        replaced["called"] = True
+        return original_replace(self, target)
+
+    monkeypatch.setattr("prepmd.structure.pdb_handler.PDBList.retrieve_pdb_file", fake_retrieve)
+    monkeypatch.setattr(Path, "replace", track_replace)
+
+    path = handler.get_or_download("1abc")
+
+    assert path == cached
+    assert replaced["called"] is False
+
+
 def test_cleanup_cache_removes_cif_files(tmp_path: Path) -> None:
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()

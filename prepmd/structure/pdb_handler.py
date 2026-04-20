@@ -95,9 +95,19 @@ class PDBHandler:
                 if not downloaded.exists():
                     raise FileNotFoundError(f"Downloaded file not found for {normalized}.")
                 if downloaded != cached:
-                    if cached.exists():
-                        cached.unlink()
-                    downloaded.replace(cached)
+                    try:
+                        if downloaded.samefile(cached):
+                            logger.debug(
+                                f"Downloaded path points to same file as cache target for {normalized}: {cached}"
+                            )
+                            logger.info(
+                                f"Downloaded PDB {normalized}; cache target already references the same file."
+                            )
+                            return cached
+                        else:
+                            downloaded.replace(cached)
+                    except FileNotFoundError:
+                        downloaded.replace(cached)
                 logger.info(f"Downloaded PDB {normalized} to {cached}")
                 return cached
             except (OSError, RuntimeError, ValueError) as exc:
