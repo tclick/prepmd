@@ -100,11 +100,15 @@ class PDBHandler:
                             logger.debug(
                                 f"Downloaded path points to same file as cache target for {normalized}: {cached}"
                             )
+                            logger.info(
+                                f"Downloaded PDB {normalized}; cache target already references the same file."
+                            )
+                            return cached
                         else:
                             downloaded.replace(cached)
                     except FileNotFoundError:
                         downloaded.replace(cached)
-                logger.info(f"Resolved PDB {normalized} at {cached}")
+                logger.info(f"Downloaded PDB {normalized} to {cached}")
                 return cached
             except (OSError, RuntimeError, ValueError) as exc:
                 last_error = exc
