@@ -37,7 +37,7 @@ jobs:
       - name: Build app bundle (macOS)
         if: runner.os == 'macOS'
         run: |
-          pyinstaller --noconfirm --clean --windowed --name prepmd-gui --osx-bundle-identifier io.github.tclick.prepmd-gui prepmd/gui/main.py
+          pyinstaller --noconfirm --clean --windowed --name prepmd-gui --osx-bundle-identifier io.github.tclick.prepmdgui prepmd/gui/main.py
           cd dist
           codesign --force --deep --sign - prepmd-gui.app
           codesign --verify --deep --strict --verbose=2 prepmd-gui.app
